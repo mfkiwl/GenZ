@@ -28,7 +28,7 @@ class Entry:
     def get_field_mask(self, field):
         return self.fields[field]
 
-    def show():
+    def show(self):
         print(f"{self.name}, 0x{self.addr:08x}")
         for f in self.fields:
             print(f"\t{f}, 0x{self.fields[f]:08x}")
@@ -38,10 +38,12 @@ class Register:
     def __init__(self, name, baseaddr, entries):
         self.name = name
         # self.baseaddr = baseaddr
-        self.entries = copy.deepcopy(entries)
+        self.entries = entries
 
     def update_entry_field(self, entryaddr, fieldname, fieldmask):
-        pass
+        e = self.a2e(entryaddr)
+        if e:
+            e.add_field(fieldname, fieldmask)
 
     def n2a(self, name, absolute=False):
         addr = -1
@@ -53,6 +55,14 @@ class Register:
         # if absolute:
             # addr += self.baseaddr
         return addr
+
+    def a2e(self, addr):
+        for e in self.entries:
+            if e.addr == addr:
+                return e
+        print(hex(addr), ' not found!')
+        return None
+        # raise Exception("Entry ", hex(addr), " not found in Register ", self.name, " !")
 
     def a2n(self, addr):
         name = ''
@@ -270,12 +280,13 @@ def parse_slcr_entries_fields(ps7_init):
                     print('Err: name syntax incorrect in ps7_init.c!')
                 if not m_field_mask:
                     print('Err: MASK syntax incorrect in ps7_init.c!')
-                print(m_entry_addr.group(1), m_field_name.group(1), m_field_mask.group(1))
-                # slcr.update_entry_field(m_entry_addr.group(1), m_field_name.group(1), m_field_mask.group(1))
+                # print(m_entry_addr.group(1), m_field_name.group(1), m_field_mask.group(1))
+                slcr.update_entry_field(int(m_entry_addr.group(1), 16), m_field_name.group(1), int(m_field_mask.group(1), 16))
                 # break
 
 
 
 if __name__ == "__main__":
     parse_slcr_entries_fields("./hdf/1/ps7_init.c")
+    slcr.show()
     # print(slcr)
