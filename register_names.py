@@ -29,41 +29,50 @@ class Entry:
         return self.fields[field]
 
     def show(self):
-        print(f"{self.name}, 0x{self.addr:08x}")
+        print(f"\t{self.name}, 0x{self.addr:08x}")
         for f in self.fields:
-            print(f"\t{f}, 0x{self.fields[f]:08x}")
+            print(f"\t\t{f}, 0x{self.fields[f]:08x}")
 
 
 class BaseRegister:
-    def __init__(self, baseaddr, entries, name=""):
+    def __init__(self, baseaddrs, entries, name="", basemask=0xFFFFF000):
         self.name = name
-        self.baseaddr = baseaddr
+        self.baseaddrs = baseaddrs
         self.entries = entries
+        self.basemask = basemask
 
     def update_entry_field(self, entryaddr, fieldname, fieldmask):
-        # todo: check if belong!
-        e = self.a2e(entryaddr - self.baseaddr)
+        e = self.a2e(entryaddr)
         if e:
             e.add_field(fieldname, fieldmask)
             return True
         return False
 
-    def n2a(self, name, absolute=False):
-        addr = -1
-        for e in self.entries:
-            if e.name.lower() == name.lower():
-                addr = e.addr;
-        if addr == -1:
-            raise Exception("Entry ", name, " not found in BaseRegister ", self.name, " !")
-        # if absolute:
-            # addr += self.baseaddr
-        return addr
+    def abelong(self, addr):
+        for baddr in self.baseaddrs:
+            if baddr == addr & self.basemask:
+                return True
+        return False
+
+    # def n2a(self, name, absolute=False):
+        # addr = -1
+        # for e in self.entries:
+            # if e.name.lower() == name.lower():
+                # addr = e.addr;
+        # if addr == -1:
+            # raise Exception("Entry ", name, " not found in BaseRegister ", self.name, " !")
+        # # if absolute:
+            # # addr += self.baseaddr
+        # return addr
 
     def a2e(self, addr):
+        if not self.abelong(addr):
+            return None
         for e in self.entries:
-            if e.addr == addr:
-                return e
-        print(hex(addr + self.baseaddr), ' not found in BaseRegister ', self.name, '!')
+            for baddr in self.baseaddrs:
+                if e.addr + baddr == addr:
+                    return e
+        print(hex(addr), ' not found in BaseRegister ', self.name, '!')
         return None
         # raise Exception("Entry ", hex(addr), " not found in Register ", self.name, " !")
 
@@ -77,19 +86,55 @@ class BaseRegister:
         return name
     
     def show(self):
+        if len(self.baseaddrs) > 1:
+            for idx, baddr in enumerate(self.baseaddrs):
+                print(f"{self.name}{idx}: 0x{baddr:08X}")
+        else:
+            print(f"{self.name}: 0x{self.baseaddrs[0]:08X}")
         # print(f"{self.name}")
         for e in self.entries:
+            # print('\t', end='')
             e.show()
             
+class Zynq7_Modules:
+    def __init__(self, baseregisters):
+        self.baseregisters = baseregisters
 
+    def insert(self, addr, fieldname, fieldmask):
+        for br in self.baseregisters:
+            if br.abelong(addr):
+                br.update_entry_field(addr, fieldname, fieldmask)
+                return True
+        print("Addr", hex(addr), "doesn't belong to any registers!")
+        return False
+
+    def show(self):
+        for br in self.baseregisters:
+            br.show()
+
+class Zynq7_InitData:
+    def __init__(self, name=''):
+        self.name = name
+        self.emit_list = []
+    
+    # 3 kinds of emit: write(a, d), maskwrite(a, m, d), maskpoll(a, m)
+    # other kinds exist, but are not used
+    def add(self, addr, mask=0xFFFFFFFF, data=0x0, poll=0):
+        if addr & 0xF0000000 == 0:
+            print('Sanity check: emit with addr', hex(addr), 'not correct!')
+        self.emit_list.append((addr, mask, data, poll))
+
+    def emit(self, fmt):
+        if fmt.lower() == 'c':
+            pass
+        else if fmt.lower() == 'tcl':
+            pass
 
 # From UG585, ZYNQ 7000 TRM, Page 1632
 # Register Name, Address, Width, Type, Reset Value, Description
 # Page 832: all base register list
 # periperals like uart, gem, usb, sd, etc has 0 and 1, and address of these are maintained by software.
-uart0 = 0xe0000000
-uart1 = 0xe0001000
-slcr = BaseRegister(0xf8000000, [
+slcr = BaseRegister([0xf8000000], [
     Entry("SCL",0x00000000,32,"rw",0x00000000,"Secure Configuration Lock"),
     Entry("SLCR_LOCK",0x00000004,32,"wo",0x00000000,"SLCR Write Protection Lock"),
     Entry("SLCR_UNLOCK",0x00000008,32,"wo",0x00000000,"SLCR Write Protection Unlock"),
@@ -252,7 +297,7 @@ slcr = BaseRegister(0xf8000000, [
     Entry("DDRIOB_DDR_CTRL",0x00000B6C,32,"rw",0x00000000,"DDR IOB Buffer Control"),
     Entry("DDRIOB_DCI_CTRL",0x00000B70,32,"rw",0x00000020,"DDR IOB DCI Config"),
     Entry("DDRIOB_DCI_STATUS",0x00000B74,32,"mixed",0x00000000,"DDR IO Buffer DCI Status") ], name='slrc')
-ddrc = BaseRegister(0xf8006000, [
+ddrc = BaseRegister([0xf8006000], [
     Entry("ddrc_ctrl", 0x00000000, 32, "rw", 0x00000200, "DDRC Control"),
     Entry("Two_rank_cfg", 0x00000004, 29, "rw", 0x000C1076, "Two Rank Configuration"),
     Entry("HPR_reg", 0x00000008, 26, "rw", 0x03C0780F, "HPR Queue control"),
@@ -366,7 +411,7 @@ ddrc = BaseRegister(0xf8006000, [
     Entry("lpddr_ctrl1", 0x000002AC, 32, "rw", 0x00000000, "LPDDR2 Control 1"),
     Entry("lpddr_ctrl2", 0x000002B0, 22, "rw", 0x003C0015, "LPDDR2 Control 2"),
     Entry("lpddr_ctrl3", 0x000002B4, 18, "rw", 0x00000601, "LPDDR2 Control 3")], name='ddrc')
-devcfg = BaseRegister(0xf8007000, [
+devcfg = BaseRegister([0xf8007000], [
     Entry("XDCFG_CTRL_OFFSET", 0xf8007000, 32, "mixed", 0x0C006000, "Control Register"),
     Entry("XDCFG_LOCK_OFFSET", 0xf8007004, 32, "mixed", 0x00000000, "Locks for the Control Register."),
     Entry("XDCFG_CFG_OFFSET", 0xf8007008, 32, "rw", 0x00000508, "Configuration Register: This register contains configuration information for the AXI transfers, and other general setup."),
@@ -387,7 +432,7 @@ devcfg = BaseRegister(0xf8007000, [
     Entry("XADCIF_CMDFIFO", 0xf8007110, 32, "wo", 0x00000000, "XADC Interface Command FIFO Data Port"),
     Entry("XADCIF_RDFIFO", 0xf8007114, 32, "ro", 0x00000000, "XADC Interface Data FIFO Data Port"),
     Entry("XADCIF_MCTL", 0xf8007118, 32, "rw", 0x00000010, "XADC Interface Miscellaneous Control.")], name='devcfg')
-uart0 = BaseRegister(0xe0000000, [
+uart = BaseRegister([0xe0000000, 0xe0001000], [
     Entry("XUARTPS_CR_OFFSET", 0x00000000, 32, "mixed", 0x00000128, "UART Control Register"),
     Entry("XUARTPS_MR_OFFSET", 0x00000004, 32, "mixed", 0x00000000, "UART Mode Register"),
     Entry("XUARTPS_IER_OFFSET", 0x00000008, 32, "mixed", 0x00000000, "Interrupt Enable Register"),
@@ -403,7 +448,9 @@ uart0 = BaseRegister(0xe0000000, [
     Entry("XUARTPS_FIFO_OFFSET", 0x00000030, 32, "mixed", 0x00000000, "Transmit and Receive FIFO"),
     Entry("Baud_rate_divider_reg0", 0x00000034, 32, "mixed", 0x0000000F, "Baud Rate Divider Register"),
     Entry("Flow_delay_reg0", 0x00000038, 32, "mixed", 0x00000000, "Flow Control Delay Register"),
-    Entry("Tx_FIFO_trigger_level0", 0x00000044, 32, "mixed", 0x00000020, "Transmitter FIFO Trigger Level Register")], name='uart0')
+    Entry("Tx_FIFO_trigger_level0", 0x00000044, 32, "mixed", 0x00000020, "Transmitter FIFO Trigger Level Register")], name='uart')
+
+zynq7_modules = Zynq7_Modules([slcr, uart])
 
 # def zynq7000_name2addr(n):
     # addr = -1
@@ -413,7 +460,7 @@ uart0 = BaseRegister(0xe0000000, [
 # def zynq7000_addr2name(a):
     # return 0
 
-def parse_slcr_entries_fields(ps7_init):
+def parse_ps7_init_entries_fields(ps7_init):
     with open(ps7_init, "r") as ps7_init_f:
         ps7_init_lines = ps7_init_f.readlines()
 
@@ -424,6 +471,8 @@ def parse_slcr_entries_fields(ps7_init):
                 break
         ps7_init_lines = ps7_init_lines[:ln_cut]
 
+        entry_unresolved = 0
+        entry_total = 0
         # print(ps7_init_lines)
         # print('---')
         r_entry_addr = re.compile(r'.*==> (0X[0-9A-F]+)\[.*\] = 0x([0-9A-F]+)U')
@@ -439,12 +488,18 @@ def parse_slcr_entries_fields(ps7_init):
                 if not m_field_mask:
                     print('Err: MASK syntax incorrect in ps7_init.c!')
                 # print(m_entry_addr.group(1), m_field_name.group(1), m_field_mask.group(1))
-                slcr.update_entry_field(int(m_entry_addr.group(1), 16), m_field_name.group(1), int(m_field_mask.group(1), 16))
+                entryaddr = int(m_entry_addr.group(1), 16)
+                fieldname = m_field_name.group(1)
+                fieldmask = int(m_field_mask.group(1), 16)
+                if zynq7_modules.insert(entryaddr, fieldname, fieldmask):
+                    entry_total += 1
+                else:
+                    entry_unresolved += 1
                 # break
+        print('Total', entry_total, 'entries,', entry_unresolved, 'unresolved. ')
 
 
 
 if __name__ == "__main__":
-    parse_slcr_entries_fields("./hdf/noddr-0-uart/ps7_init.c")
-    slcr.show()
-    # print(slcr)
+    parse_ps7_init_entries_fields("./hdf/noddr-0-uart/ps7_init_gpl.c")
+    zynq7_modules.show()
