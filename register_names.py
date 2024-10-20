@@ -23,10 +23,10 @@ class Entry:
         return self.addr
 
     def add_field(self, field, mask):
-        self.fields[field] = mask
+        self.fields[field.upper()] = mask
 
     def get_field_mask(self, field):
-        return self.fields[field]
+        return self.fields[field.upper()]
 
     def show(self):
         print(f"\t{self.name}, 0x{self.addr:08x}")
@@ -54,16 +54,12 @@ class BaseRegister:
                 return True
         return False
 
-    # def n2a(self, name, absolute=False):
-        # addr = -1
-        # for e in self.entries:
-            # if e.name.lower() == name.lower():
-                # addr = e.addr;
-        # if addr == -1:
-            # raise Exception("Entry ", name, " not found in BaseRegister ", self.name, " !")
-        # # if absolute:
-            # # addr += self.baseaddr
-        # return addr
+    def n2e(self, entry):
+        for e in self.entries:
+            if e.name.lower() == entry.lower():
+                return e
+        print("Entry", name, "not found in BaseRegister", self.name, "!")
+        return None
 
     def a2e(self, addr):
         if not self.abelong(addr):
@@ -108,6 +104,26 @@ class Zynq7_Modules:
         print("Addr", hex(addr), "doesn't belong to any registers!")
         return False
 
+    def find(self, basereg, entry, field, idx=0):
+        badret = (None, None)
+        br = None
+        for _br in self.baseregisters:
+            if basereg.lower() == _br.name.lower():
+                br = _br
+        if br == None:
+            print('BaseRegister', basereg, 'not found!')
+            return badret
+        e = br.n2e(entry)
+        if e == None:
+            print('Entry', entry, 'not found!')
+            return badret
+        mask = e.get_field_mask(field)
+        if mask == None:
+            print('Field', field, 'not found!')
+            return badreg
+        addr = br.baseaddrs[idx] + e.addr
+        return (addr, mask)
+
     def show(self):
         for br in self.baseregisters:
             br.show()
@@ -119,16 +135,33 @@ class Zynq7_InitData:
     
     # 3 kinds of emit: write(a, d), maskwrite(a, m, d), maskpoll(a, m)
     # other kinds exist, but are not used
-    def add(self, addr, mask=0xFFFFFFFF, data=0x0, poll=0):
-        if addr & 0xF0000000 == 0:
-            print('Sanity check: emit with addr', hex(addr), 'not correct!')
+    def add(self, z7m, basereg, entry, field, data=0x0, poll=0):
+        addr, mask = z7m.find(basereg, entry, field)
+        if addr == None or mask == None:
+            print('Error finding basereg/entry/field from Zynq7_Modules!')
+            return False
         self.emit_list.append((addr, mask, data, poll))
+        return True
 
-    def emit(self, fmt):
+    def emit(self, fmt='C'):
+        e = ''
         if fmt.lower() == 'c':
-            pass
-        else if fmt.lower() == 'tcl':
-            pass
+            for addr, mask, data, poll in self.emit_list:
+                if poll:
+                    e += ('EMIT_MASKPOLL(0X%08X, 0x%08XU),\n' % (addr, mask))
+                elif mask == 0xFFFFFFFF:
+                    e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data))
+                else:
+                    e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data))
+        elif fmt.lower() == 'tcl':
+            for addr, mask, data, poll in self.emit_list:
+                if poll:
+                    e += ('mask_poll 0X%08X, 0x%08X\n' % (addr, mask))
+                elif mask == 0xFFFFFFFF:
+                    e += ('mwr -force 0X%08X, 0x%08X\n' % (addr, data))
+                else:
+                    e += ('mask_write 0X%08X, 0x%08X 0x%08X\n' % (addr, mask, data))
+        return e
 
 # From UG585, ZYNQ 7000 TRM, Page 1632
 # Register Name, Address, Width, Type, Reset Value, Description
@@ -296,7 +329,7 @@ slcr = BaseRegister([0xf8000000], [
     Entry("DDRIOB_DRIVE_SLEW_CLOCK",0x00000B68,32,"rw",0x00000000,"Drive and Slew controls for Clock pins of the DDR Interface"),
     Entry("DDRIOB_DDR_CTRL",0x00000B6C,32,"rw",0x00000000,"DDR IOB Buffer Control"),
     Entry("DDRIOB_DCI_CTRL",0x00000B70,32,"rw",0x00000020,"DDR IOB DCI Config"),
-    Entry("DDRIOB_DCI_STATUS",0x00000B74,32,"mixed",0x00000000,"DDR IO Buffer DCI Status") ], name='slrc')
+    Entry("DDRIOB_DCI_STATUS",0x00000B74,32,"mixed",0x00000000,"DDR IO Buffer DCI Status") ], name='slcr')
 ddrc = BaseRegister([0xf8006000], [
     Entry("ddrc_ctrl", 0x00000000, 32, "rw", 0x00000200, "DDRC Control"),
     Entry("Two_rank_cfg", 0x00000004, 29, "rw", 0x000C1076, "Two Rank Configuration"),
@@ -451,14 +484,11 @@ uart = BaseRegister([0xe0000000, 0xe0001000], [
     Entry("Tx_FIFO_trigger_level0", 0x00000044, 32, "mixed", 0x00000020, "Transmitter FIFO Trigger Level Register")], name='uart')
 
 zynq7_modules = Zynq7_Modules([slcr, uart])
-
-# def zynq7000_name2addr(n):
-    # addr = -1
-    # for i in slcr:
-        # if n.lower() == i[0].
-    # return 0
-# def zynq7000_addr2name(a):
-    # return 0
+pll = Zynq7_InitData('pll')
+clock = Zynq7_InitData('clock')
+mio = Zynq7_InitData('mio')
+peripherals = Zynq7_InitData('peripherals')
+ddr = Zynq7_InitData('ddr')
 
 def parse_ps7_init_entries_fields(ps7_init):
     with open(ps7_init, "r") as ps7_init_f:
@@ -503,3 +533,5 @@ def parse_ps7_init_entries_fields(ps7_init):
 if __name__ == "__main__":
     parse_ps7_init_entries_fields("./hdf/noddr-0-uart/ps7_init_gpl.c")
     zynq7_modules.show()
+    pll.add(zynq7_modules, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
+    print(pll.emit())
