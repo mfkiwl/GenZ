@@ -158,12 +158,18 @@ class PS7_InitData:
                 if comment:
                     basereg, entry, field, data = self.comment_list[i]
                     e += '// ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '\n'
+                # shift data to mask position
+                zeros = 0
+                mask0 = mask
+                while mask0 & 1 == 0:
+                    zeros += 1
+                    mask0 >>= 1
                 if poll:
                     e += ('EMIT_MASKPOLL(0X%08X, 0x%08XU),\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
-                    e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data))
+                    e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data << zeros))
                 else:
-                    e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data))
+                    e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data << zeros))
                 i += 1
         elif fmt.lower() == 'tcl':
             for addr, mask, data, poll in self.emit_list:
@@ -505,6 +511,18 @@ ddr = PS7_InitData('ddr')
 
 unlock_key = 0xdf0d
 lock_key = 0x767b
+enable = 1
+disable = 0
+assert_ = 1
+deassert = 0
+# PLL selection for APU
+ARM_ARM_PLL = 0b00
+ARM_DDR_PLL = 0b10
+ARM_IO_PLL = 0b11
+# PLL selection for IO
+IO_IO_PLL = 0b00
+IO_ARM_PLL = 0b10
+IO_DDR_PLL = 0b11
 
 def parse_ps7_init_entries_fields(ps7_init):
     with open(ps7_init, "r") as ps7_init_f:
