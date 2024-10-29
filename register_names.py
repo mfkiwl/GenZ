@@ -92,7 +92,7 @@ class BaseRegister:
             # print('\t', end='')
             e.show()
             
-class Zynq7_Modules:
+class Zynq7_AllRegisters:
     def __init__(self, baseregisters):
         self.baseregisters = baseregisters
 
@@ -128,31 +128,43 @@ class Zynq7_Modules:
         for br in self.baseregisters:
             br.show()
 
-class Zynq7_InitData:
+class PS7_InitData:
     def __init__(self, name=''):
         self.name = name
         self.emit_list = []
+        self.comment_list = []
     
     # 3 kinds of emit: write(a, d), maskwrite(a, m, d), maskpoll(a, m)
     # other kinds exist, but are not used
     def add(self, z7m, basereg, entry, field, data=0x0, poll=0):
         addr, mask = z7m.find(basereg, entry, field)
         if addr == None or mask == None:
-            print('Error finding basereg/entry/field from Zynq7_Modules!')
+            print('Error finding basereg/entry/field from Zynq7_AllRegisters!')
             return False
         self.emit_list.append((addr, mask, data, poll))
+        self.comment_list.append((basereg, entry, field, data))
         return True
 
-    def emit(self, fmt='C'):
+    # Merge write to the same entry, different field, by ORing all the data/mask
+    # Do not change orders. 
+    def merge(self):
+        pass
+
+    def emit(self, fmt='C', comment=True):
         e = ''
+        i = 0
         if fmt.lower() == 'c':
             for addr, mask, data, poll in self.emit_list:
+                if comment:
+                    basereg, entry, field, data = self.comment_list[i]
+                    e += '// ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '\n'
                 if poll:
                     e += ('EMIT_MASKPOLL(0X%08X, 0x%08XU),\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
                     e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data))
                 else:
                     e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data))
+                i += 1
         elif fmt.lower() == 'tcl':
             for addr, mask, data, poll in self.emit_list:
                 if poll:
@@ -161,6 +173,7 @@ class Zynq7_InitData:
                     e += ('mwr -force 0X%08X, 0x%08X\n' % (addr, data))
                 else:
                     e += ('mask_write 0X%08X, 0x%08X 0x%08X\n' % (addr, mask, data))
+                i += 1
         return e
 
 # From UG585, ZYNQ 7000 TRM, Page 1632
@@ -483,12 +496,15 @@ uart = BaseRegister([0xe0000000, 0xe0001000], [
     Entry("Flow_delay_reg0", 0x00000038, 32, "mixed", 0x00000000, "Flow Control Delay Register"),
     Entry("Tx_FIFO_trigger_level0", 0x00000044, 32, "mixed", 0x00000020, "Transmitter FIFO Trigger Level Register")], name='uart')
 
-zynq7_modules = Zynq7_Modules([slcr, uart])
-pll = Zynq7_InitData('pll')
-clock = Zynq7_InitData('clock')
-mio = Zynq7_InitData('mio')
-peripherals = Zynq7_InitData('peripherals')
-ddr = Zynq7_InitData('ddr')
+zynq7_allregisters = Zynq7_AllRegisters([slcr, uart])
+pll = PS7_InitData('pll')
+clock = PS7_InitData('clock')
+mio = PS7_InitData('mio')
+peripherals = PS7_InitData('peripherals')
+ddr = PS7_InitData('ddr')
+
+unlock_key = 0xdf0d
+lock_key = 0x767b
 
 def parse_ps7_init_entries_fields(ps7_init):
     with open(ps7_init, "r") as ps7_init_f:
@@ -521,7 +537,7 @@ def parse_ps7_init_entries_fields(ps7_init):
                 entryaddr = int(m_entry_addr.group(1), 16)
                 fieldname = m_field_name.group(1)
                 fieldmask = int(m_field_mask.group(1), 16)
-                if zynq7_modules.insert(entryaddr, fieldname, fieldmask):
+                if zynq7_allregisters.insert(entryaddr, fieldname, fieldmask):
                     entry_total += 1
                 else:
                     entry_unresolved += 1
@@ -532,6 +548,7 @@ def parse_ps7_init_entries_fields(ps7_init):
 
 if __name__ == "__main__":
     parse_ps7_init_entries_fields("./hdf/noddr-0-uart/ps7_init_gpl.c")
-    zynq7_modules.show()
-    pll.add(zynq7_modules, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
+    zynq7_allregisters.show()
+    pll.add(zynq7_allregisters, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
+    pll.add(zynq7_allregisters, 'slcr', 'slcr_lock', 'lock_key', 0x767b)
     print(pll.emit())
