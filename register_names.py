@@ -509,6 +509,7 @@ mio = PS7_InitData('mio')
 peripherals = PS7_InitData('peripherals')
 ddr = PS7_InitData('ddr')
 
+# some user-friendly macros
 unlock_key = 0xdf0d
 lock_key = 0x767b
 enable = 1
@@ -523,6 +524,16 @@ ARM_IO_PLL = 0b11
 IO_IO_PLL = 0b00
 IO_ARM_PLL = 0b10
 IO_DDR_PLL = 0b11
+# MIO IO type
+lvcmos18 = 0b001
+lvcmos25 = 0b010
+lvcmos33 = 0b011
+hstl = 0b100
+slow = 0
+fast = 1
+x = ''
+_ = 0
+
 
 def parse_ps7_init_entries_fields(ps7_init):
     with open(ps7_init, "r") as ps7_init_f:
