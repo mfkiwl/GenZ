@@ -2,14 +2,18 @@
 from register_names import *
 
 class Clock:
-    def __init__(self, requested, lower, upper, oc=0, auto=0, source='default'):
-        self.requested = requested
+    def __init__(self, requested, lower, upper,
+                 oc=0, auto=0, source='default', disable=0, has_div1=0, tolerance=1):
+        self.freq = requested
         self.actual = 0
         self.lower = lower
         self.upper = upper
         self.oc = oc # allow overclocking
         self.auto = auto # allow any frequency in range
         self.source = source
+        self.disable = disable
+        self.has_div1 = has_div1
+        self.tolerance = tolerance
 
 class Uart:
     def __init__(self, enabled, num, baud=115200):
@@ -125,9 +129,13 @@ z7000_ps_param_demo = {
 # input: input frequency, output frequecy, multiplier range, divisor0 range, divisor1 range
 # output: mul, div0, div1, frequency diff in percentage
 # ordinary calc: returns mul, div, abs deviation
-# in range only: returns mul, div, freq (-1 for impossible)
+# in range only: fin should be (requested, fmin, fmax) returns mul, div, freq (-1 for impossible), dev (from requested freq)
 # prioritize multiplier in order as specified in mulrange
-def calc_pll_muldiv(fin, fout, mulrange, div0range, div1range, in_range_only=0, opt='mul'):
+# Unit: MHz
+def calc_pll_muldiv(fin, fout, mulrange, div0range, div1range,
+                    freq_range=(0, 9e9), pll_range=(900, 1600),
+                    opt='mul', tolerance=1):
+    # print(freq_range)
     fin = fin # this controls our accuracy!
     fout = fout
     drange = []
@@ -136,8 +144,8 @@ def calc_pll_muldiv(fin, fout, mulrange, div0range, div1range, in_range_only=0, 
             drange.append(d0 * d1)
     # if not optdiv: # don't need sort actually, just repeat...
         # drange = list(set(drange)) # automatically sorted
-    print(mulrange)
-    print(drange)
+    # print(mulrange)
+    # print(drange)
     mbest = -1
     dbest = -1
     devmin = 9e9
@@ -146,8 +154,11 @@ def calc_pll_muldiv(fin, fout, mulrange, div0range, div1range, in_range_only=0, 
             devsmall = 9e9
             mgood = -1
             for m in mulrange:
-                dev = abs(fin * m / d - fout) / fout
-                if dev < devsmall:
+                if not in_range(fin*m, pll_range):
+                    continue
+                f = fin * m / d
+                dev = abs(f - fout) / fout
+                if dev < devsmall and in_range(f, freq_range):
                     devsmall = dev
                     mgood = m
             if devsmall < devmin:
@@ -156,54 +167,189 @@ def calc_pll_muldiv(fin, fout, mulrange, div0range, div1range, in_range_only=0, 
                 mbest = mgood
     elif opt == 'mul':
         for m in mulrange:
+            if not in_range(fin*m, pll_range):
+                continue
             devsmall = 9e9
             dgood = -1
             for d in drange:
-                dev = abs(fin * m / d - fout) / fout
-                if dev < devsmall:
+                f = fin * m / d
+                dev = abs(f - fout) / fout
+                if dev < devsmall and in_range(f, freq_range):
                     devsmall = dev
                     dgood = d
             if devsmall < devmin:
                 devmin = devsmall
                 mbest = m
                 dbest = dgood
+    d0best = -1
+    d1best = -1
+    for d0 in div0range[::-1]: # prefer large d0, small d1
+        for d1 in div1range:
+            if d0*d1 == dbest:
+                d0best = d0
+                d1best = d1
+                break
+        if d0best != -1:
+            break
+    # print(fin, 'MHz ->', fout, '(', fin*mbest/(d0best*d1best) , ')MHz:', mbest, d0best, d1best, devmin)
+    # in_range_only gives much more tolerance for deviation from "expected" freq
+    # we don't need a special in_range_only parameter, it's done automatically
+    return (mbest, d0best, d1best, devmin / tolerance)
 
-    print(fin, fout, mbest, dbest, devmin)
+def r_l_h(l, h):
+    return [i for i in range(l, h+1)]
+def in_range(f, frange):
+    return f >= frange[0] and f <= frange[1]
 
 class Zynq7000:
     def __init__(self, param):
         self.param = param
-        self.CRYSTAL_FREQ = Clock(33.333333, 30, 60)
+        self.CRYSTAL_FREQ = Clock(43.333333, 30, 60)
         self.APU_FREQ = Clock(666.666666, 50, 667, oc=1) # default from ARM PLL
         self.APU_CLK_RATIO = '6:2:1' # or 4:2:1
         self.DDR_FREQ = Clock(533.333333, 200, 534, oc=1) # default from DDR PLL
-        self.FCLK0_FREQ = Clock('disabled', 0.1, 250) # FCLK and peripheral default from IO PLL
-        self.FCLK1_FREQ = Clock('disabled', 0.1, 250)
-        self.FCLK2_FREQ = Clock('disabled', 0.1, 250)
-        self.FCLK3_FREQ = Clock('disabled', 0.1, 250)
-        self.QSPI_FREQ = Clock('disabled', 10, 200)
-        self.SMC_FREQ = Clock('disabled', 10, 100) # static memory controller
-        self.ENET0_FREQ = Clock('disabled', 0.1, 125)
-        self.ENET1_FREQ = Clock('disabled', 0.1, 125)
-        self.SDIO_FREQ = Clock('disabled', 10, 125)
-        self.SPI_FREQ = Clock('disabled', 0, 200)
-        self.UART_FREQ = Clock('disabled', 10, 100)
-        self.CAN_FREQ = Clock('disabled', 0.1, 100)
-        self.PCAP_FREQ = Clock('auto', 10, 200) # processor configuration access point, for loading bitstream from PS
-        self.DCI_FREQ = Clock('auto', 0.1, 177) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
+        self.FCLK0_FREQ = Clock(50, 0.1, 250, disable=0) # FCLK and peripheral default from IO PLL
+        self.FCLK1_FREQ = Clock(50, 0.1, 250, disable=1)
+        self.FCLK2_FREQ = Clock(50, 0.1, 250, disable=1)
+        self.FCLK3_FREQ = Clock(50, 0.1, 250, disable=1)
+        self.QSPI_FREQ = Clock(200, 10, 200, disable=1, auto=1)
+        self.SMC_FREQ = Clock(100, 10, 100, disable=1, auto=1) # static memory controller
+        self.ENET0_FREQ = Clock(125, 0.1, 125, disable=0, auto=1)
+        self.ENET1_FREQ = Clock(125, 0.1, 125, disable=1, auto=1)
+        self.SDIO_FREQ = Clock(100, 10, 125, disable=1, auto=1)
+        self.SPI_FREQ = Clock(170, 0, 200, disable=0, auto=1, tolerance=100)
+        self.UART_FREQ = Clock(100, 10, 100, disable=0, auto=1)
+        self.CAN_FREQ = Clock(100, 0.1, 100, disable=1, auto=1)
+        self.PCAP_FREQ = Clock(200, 10, 200, auto=1) # processor configuration access point, for loading bitstream from PS
+        self.DCI_FREQ = Clock(10.1, 0.1, 177, auto=1) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
 
         self.pll_mul_min = 13
         self.pll_mul_max = 48
         self.pll_muldiv_min_abs = 1
         self.pll_muldiv_max_abs = 63
 
+        self.warning_thres = 0.005
         self.param_calculated = False
 
 
     def param_calc(self):
+        xtal = self.CRYSTAL_FREQ.freq
+        print("ZYNQ PS XTAL", xtal, 'MHz')
+        # absolute range of divisors/multipliers
+        r_l_h_abs = r_l_h(z7.pll_muldiv_min_abs, z7.pll_muldiv_max_abs)
+        r_l_h_mut = r_l_h(z7.pll_mul_min, z7.pll_mul_max)
+
+        # ARM PLL
+        m, d0, d1, dev = calc_pll_muldiv(xtal, self.APU_FREQ.freq,
+                        r_l_h_mut, [2] + r_l_h_abs, [1], opt='div',
+                        freq_range=(self.APU_FREQ.lower, self.APU_FREQ.upper))
+        self.arm_pll_mul = m
+        self.arm_pll_div0 = d0 # usually 2
+        self.APU_FREQ.actual = xtal*m/d0
+        print("ARM PLL:", xtal, '*', m, '=', xtal*m, 'MHz')
+        print("\tAPU:", '/', d0, '=', self.APU_FREQ.actual, 'MHz (requested', self.APU_FREQ.freq, 'MHz)')
+        if dev > self.warning_thres:
+            print("\tWarning: ARM PLL deviation is large!")
+
+        # DDR PLL
+        m, d0, d1, dev = calc_pll_muldiv(xtal, self.DDR_FREQ.freq,
+                        r_l_h_mut, [2], [1], opt='div', 
+                        freq_range=(self.DDR_FREQ.lower, self.DDR_FREQ.upper))
+        self.ddr_pll_mul = m
+        self.ddr_pll_div0 = d0 # now fixed to 2
+        self.DDR_FREQ.actual = xtal*m/d0
+        print("DDR PLL:", xtal, '*', m, '=', xtal*m, 'MHz')
+        print("\tDDR:", '/', d0, '=', self.DDR_FREQ.actual, 'MHz (requested', self.DDR_FREQ.freq, 'MHz)')
+        if dev > self.warning_thres:
+            print("\tWarning: DDR PLL deviation is large!")
+        m, d0, d1, dev = calc_pll_muldiv(xtal, self.DCI_FREQ.freq,
+                        [self.ddr_pll_mul], r_l_h_abs, r_l_h_abs, opt='div')
+        self.dci_div0 = d0
+        self.dci_div1 = d1
+        self.DCI_FREQ.actual = xtal*m/(d0*d1)
+        print("\tDCI:", '/', d0, '/', d1, '=', self.DCI_FREQ.actual, 'MHz (requested', self.DCI_FREQ.freq, 'MHz)')
+        if dev > 0.1:
+            print("\tWarning: DCI freq deviation is large!")
+        # IO PLL
+        periph_list = [self.FCLK0_FREQ, self.FCLK1_FREQ, self.FCLK2_FREQ, self.FCLK3_FREQ, 
+                       self.QSPI_FREQ, self.SMC_FREQ, self.ENET0_FREQ, self.ENET1_FREQ, 
+                       self.SDIO_FREQ, self.SPI_FREQ, self.UART_FREQ, self.CAN_FREQ,
+                       self.PCAP_FREQ]
+        dev_sum_min = 9e9
+        mbest = -1
+        for m in r_l_h_mut:
+            dev_sum = 0
+            for PERIPH in [p for p in periph_list if not p.disable]:
+                x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
+                                 [m], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                                 freq_range=(PERIPH.lower, PERIPH.upper),
+                                 tolerance=PERIPH.tolerance)
+                dev_sum += dev
+            if dev_sum < dev_sum_min:
+                dev_sum_min = dev_sum
+                mbest = m
+        self.io_pll_mul = mbest
+        print("IO PLL:", xtal, '*', mbest, '=', xtal*mbest, 'MHz')
+        # for PERIPH in periph_list:
+            # x, d0, d1, x = calc_pll_muldiv(xtal, PERIPH.freq,
+                             # [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                             # freq_range=(PERIPH.lower, PERIPH.upper),
+                             # tolerance=PERIPH.tolerance)
+            # if not PERIPH.disable:
+                # print("\tSDIO:", '/', d0, '=', self.SDIO_FREQ.actual,
+                      # 'MHz (requested', self.SDIO_FREQ.freq, 'MHz)')
+
+        PERIPH = self.SDIO_FREQ
+        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
+                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                         freq_range=(PERIPH.lower, PERIPH.upper),
+                         tolerance=PERIPH.tolerance)
+        self.sdio_div = d0
+        self.SDIO_FREQ.actual = xtal*mbest/(d0)
+        if not PERIPH.disable:
+            print("\tSDIO:", '/', d0, '=', self.SDIO_FREQ.actual, 'MHz (requested', self.SDIO_FREQ.freq, 'MHz)')
+        PERIPH = self.UART_FREQ
+        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
+                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                         freq_range=(PERIPH.lower, PERIPH.upper),
+                         tolerance=PERIPH.tolerance)
+        self.uart_div = d0
+        self.UART_FREQ.actual = xtal*mbest/(d0)
+        if not PERIPH.disable:
+            print("\tUART:", '/', d0, '=', self.UART_FREQ.actual, 'MHz (requested', self.UART_FREQ.freq, 'MHz)')
+        PERIPH = self.PCAP_FREQ
+        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
+                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                         freq_range=(PERIPH.lower, PERIPH.upper),
+                         tolerance=PERIPH.tolerance)
+        self.uart_div = d0
+        self.PCAP_FREQ.actual = xtal*mbest/(d0)
+        if not PERIPH.disable:
+            print("\tPCAP:", '/', d0, '=', self.PCAP_FREQ.actual, 'MHz (requested', self.PCAP_FREQ.freq, 'MHz)')
+
+        PERIPH = self.FCLK0_FREQ
+        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
+                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                         freq_range=(PERIPH.lower, PERIPH.upper),
+                         tolerance=PERIPH.tolerance)
+        self.fclk0_div0 = d0
+        self.fclk0_div1 = d1
+        self.FCLK0_FREQ.actual = xtal*mbest/(d0)
+        if not PERIPH.disable:
+            print("\tFCLK0:", '/', d0, '/', d1, '=', self.FCLK0_FREQ.actual, 'MHz (requested', self.FCLK0_FREQ.freq, 'MHz)')
+        PERIPH = self.FCLK1_FREQ
+        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
+                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                         freq_range=(PERIPH.lower, PERIPH.upper),
+                         tolerance=PERIPH.tolerance)
+        self.fclk1_div0 = d0
+        self.fclk1_div1 = d1
+        self.FCLK1_FREQ.actual = xtal*mbest/(d0)
+        if not PERIPH.disable:
+            print("\tFCLK1:", '/', d0, '/', d1, '=', self.FCLK1_FREQ.actual, 'MHz (requested', self.FCLK1_FREQ.freq, 'MHz)')
+
+
         self.param_calculated = True
-        self.armpll_div0 = 2
-        # self.armpll_mul = 
 
     def ps7_init_gen(self, zar):
         if not self.param_calculated:
@@ -221,40 +367,43 @@ class Zynq7000:
         # Procedures are the same -- set params, reset, wait for lock, set derived info
         pll.add(zar, 'slcr', 'slcr_unlock', 'unlock_key', unlock_key)
         # ARM PLL
-        pll.add(zar, 'slcr', 'arm_pll_cfg', 'pll_res', -1)
-        pll.add(zar, 'slcr', 'arm_pll_cfg', 'pll_cp', -1)
-        pll.add(zar, 'slcr', 'arm_pll_cfg', 'lock_cnt', -1)
-        pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_fdiv', -1)
+        cp, res, cnt = get_pll_cp_res_cnt(self.arm_pll_mul)
+        pll.add(zar, 'slcr', 'arm_pll_cfg', 'pll_res', res)
+        pll.add(zar, 'slcr', 'arm_pll_cfg', 'pll_cp', cp)
+        pll.add(zar, 'slcr', 'arm_pll_cfg', 'lock_cnt', cnt)
+        pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_fdiv', self.arm_pll_mul)
         pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_bypass_force', enable)
         pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_reset', assert_)
         pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_reset', deassert)
         pll.add(zar, 'slcr', 'pll_status', 'arm_pll_lock', 1, poll=1)
         pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_bypass_force', disable)
-        pll.add(zar, 'slcr', 'arm_clk_ctrl', 'srcsel', -1)
-        pll.add(zar, 'slcr', 'arm_clk_ctrl', 'divisor', -1)
+        pll.add(zar, 'slcr', 'arm_clk_ctrl', 'srcsel', ARM_ARM_PLL)
+        pll.add(zar, 'slcr', 'arm_clk_ctrl', 'divisor', self.arm_pll_div0)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_6or4xclkact', enable)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_3or2xclkact', enable)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_1xclkact', enable)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_peri_clkact', enable)
         # DDR PLL
-        pll.add(zar, 'slcr', 'ddr_pll_cfg', 'pll_res', -1)
-        pll.add(zar, 'slcr', 'ddr_pll_cfg', 'pll_cp', -1)
-        pll.add(zar, 'slcr', 'ddr_pll_cfg', 'lock_cnt', -1)
-        pll.add(zar, 'slcr', 'ddr_pll_ctrl', 'pll_fdiv', -1)
+        cp, res, cnt = get_pll_cp_res_cnt(self.ddr_pll_mul)
+        pll.add(zar, 'slcr', 'ddr_pll_cfg', 'pll_res', res)
+        pll.add(zar, 'slcr', 'ddr_pll_cfg', 'pll_cp', cp)
+        pll.add(zar, 'slcr', 'ddr_pll_cfg', 'lock_cnt', cnt)
+        pll.add(zar, 'slcr', 'ddr_pll_ctrl', 'pll_fdiv', self.ddr_pll_mul)
         pll.add(zar, 'slcr', 'ddr_pll_ctrl', 'pll_bypass_force', enable)
         pll.add(zar, 'slcr', 'ddr_pll_ctrl', 'pll_reset', assert_)
         pll.add(zar, 'slcr', 'ddr_pll_ctrl', 'pll_reset', deassert)
         pll.add(zar, 'slcr', 'pll_status', 'ddr_pll_lock', 1, poll=1)
         pll.add(zar, 'slcr', 'ddr_pll_ctrl', 'pll_bypass_force', disable)
-        pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_3xclkact', enable)
+        pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_3xclkact', enable) 
         pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_2xclkact', enable)
-        pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_3xclk_divisor', -1)
-        pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_2xclk_divisor', -1)
+        pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_3xclk_divisor', 0x2) # only this was seen, yet
+        pll.add(zar, 'slcr', 'ddr_clk_ctrl', 'ddr_2xclk_divisor', 0x3)
         # IO PLL
-        pll.add(zar, 'slcr', 'io_pll_cfg', 'pll_res', -1)
-        pll.add(zar, 'slcr', 'io_pll_cfg', 'pll_cp', -1)
-        pll.add(zar, 'slcr', 'io_pll_cfg', 'lock_cnt', -1)
-        pll.add(zar, 'slcr', 'io_pll_ctrl', 'pll_fdiv', -1)
+        cp, res, cnt = get_pll_cp_res_cnt(self.io_pll_mul)
+        pll.add(zar, 'slcr', 'io_pll_cfg', 'pll_res', res)
+        pll.add(zar, 'slcr', 'io_pll_cfg', 'pll_cp', cp)
+        pll.add(zar, 'slcr', 'io_pll_cfg', 'lock_cnt', cnt)
+        pll.add(zar, 'slcr', 'io_pll_ctrl', 'pll_fdiv', self.io_pll_mul)
         pll.add(zar, 'slcr', 'io_pll_ctrl', 'pll_bypass_force', enable)
         pll.add(zar, 'slcr', 'io_pll_ctrl', 'pll_reset', assert_)
         pll.add(zar, 'slcr', 'io_pll_ctrl', 'pll_reset', deassert)
@@ -268,18 +417,18 @@ class Zynq7000:
         # clock enables for each of each PS peripheral kinds (eg. UART0-1, FCLK0-3) are also set here
         clock.add(zar, 'slcr', 'slcr_unlock', 'unlock_key', unlock_key)
         clock.add(zar, 'slcr', 'dci_clk_ctrl', 'clkact', enable)
-        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor0', -1)
-        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor1', -1)
+        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor0', self.dci_div0)
+        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor1', self.dci_div1)
 
         clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'clkact0', enable)
         clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'clkact1', enable)
         clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'divisor', -1)
+        clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'divisor', self.sdio_div)
 
         clock.add(zar, 'slcr', 'uart_clk_ctrl', 'clkact0', enable)
         clock.add(zar, 'slcr', 'uart_clk_ctrl', 'clkact1', enable)
         clock.add(zar, 'slcr', 'uart_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'uart_clk_ctrl', 'divisor', -1)
+        clock.add(zar, 'slcr', 'uart_clk_ctrl', 'divisor', self.uart_div)
 
         clock.add(zar, 'slcr', 'pcap_clk_ctrl', 'clkact', enable)
         clock.add(zar, 'slcr', 'pcap_clk_ctrl', 'srcsel', IO_IO_PLL)
@@ -341,5 +490,5 @@ if __name__ == '__main__':
     z7.ps7_init_gen(zynq7_allregisters)
     calc_pll_muldiv(33.333333, 50, [i for i in range(z7.pll_mul_min, z7.pll_mul_max+1)], [i for i in range(1, 63+1)], [1])
     calc_pll_muldiv(33.333333, 666.666667, [i for i in range(z7.pll_mul_min, z7.pll_mul_max+1)], [2], [1])
-    calc_pll_muldiv(33.333333, 1666.666667, [i for i in range(z7.pll_mul_min, z7.pll_mul_max+1)], [2] + [i for i in range(z7.pll_muldiv_min_abs, z7.pll_muldiv_max_abs+1)], [1], opt='div')
+    calc_pll_muldiv(33.333333, 1966.666667, [i for i in range(z7.pll_mul_min, z7.pll_mul_max+1)], [2] + [i for i in range(z7.pll_muldiv_min_abs, z7.pll_muldiv_max_abs+1)], [1], opt='div')
 
