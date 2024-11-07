@@ -2,8 +2,9 @@
 from register_names import *
 
 class Clock:
-    def __init__(self, requested, lower, upper,
+    def __init__(self, name, requested, lower, upper,
                  oc=0, auto=0, source='default', disable=0, has_div1=0, tolerance=1):
+        self.name = name
         self.freq = requested
         self.actual = 0
         self.lower = lower
@@ -12,6 +13,8 @@ class Clock:
         self.auto = auto # allow any frequency in range
         self.source = source
         self.disable = disable
+        self.div0 = -1
+        self.div1 = -1
         self.has_div1 = has_div1
         self.tolerance = tolerance
 
@@ -56,14 +59,37 @@ def get_pll_cp_res_cnt(fdiv):
 # Peripheral configuration and MIO configuration is kind separated
 # Peripherals can be without MIO pins -- will be accessible only to EMIO then
 # EMIO GPIO and peripherals are seen as always enabled
-#				TRI_ENABLE	Speed	IO_Type		PULLUP		DisableRcvr
-mios_common = [	enable ,	slow ,	lvcmos33,	enable ,	enable 	]
+# mios_defaults = {'TRI_ENABLE': enable,
+                 # 'Speed': slow,
+                 # 'IO_Type': lvcmos33,
+                 # 'PULLUP': enable,
+                 # 'DisableRcvr': enable}
 # Boot Mode MIO pins, pullup is not available. 
 mios_nopullup = [2, 3, 4, 5, 6, 7, 8]
+# Eyecandies...
 _=0
+x=''
+
+# Return L0_SEL, L1_SEL, L2_SEL, L3_SEL
+def z7000_ps_param_L_sel(arr):
+    idx = arr.index(next(filter(lambda x: x!='', arr)))
+    idx_arr = [[0b1, 0b0, 0b00, 0b000],
+               [0b0, 0b1, 0b00, 0b000],
+               [0b0, 0b0, 0b01, 0b000],
+               [0b0, 0b0, 0b10, 0b000],
+               [0b0, 0b0, 0b11, 0b000],
+               [0b0, 0b0, 0b00, 0b000],
+               [0b0, 0b0, 0b00, 0b001],
+               [0b0, 0b0, 0b00, 0b010],
+               [0b0, 0b0, 0b00, 0b011],
+               [0b0, 0b0, 0b00, 0b100],
+               [0b0, 0b0, 0b00, 0b101],
+               [0b0, 0b0, 0b00, 0b110],
+               [0b0, 0b0, 0b00, 0b111]]
+    return idx_arr[idx]
 z7000_ps_param_demo = {
     #				L0				L1					L2_01				L2_10				L2_11			L3_000		L3_001			L3_010				L3_011			L3_100			L3_101			L3_110			L3_111
-    'MIO_PIN_00': [	_*'qspi1 ss_b',	x,					_*'sram/nor cs0',	_*'nand cs0',		_*'sd0 power',	_*'gpio',	x,				x,					x,				x,				x,				x,				'☑ ☐ '],
+    'MIO_PIN_00': [	_*'qspi1 ss_b',	x,					_*'sram/nor cs0',	_*'nand cs0',		_*'sd0 power',	_*'gpio',	x,				x,					x,				x,				x,				x,				''],
 	'MIO_PIN_01': [	_*'qspi0 ss_b',	x,					_*'sram addr25',	_*'sram/nor cs1',	_*'sd1 power',	_*'gpio',	x,				x,					x,				x,				x,				x,				x],
 	'MIO_PIN_02': [	_*'qspi0 io0',	_*'trace data8',	x,					_*'nand alen',		_*'sd0 power',	_*'gpio',	x,				x,					x,				x,				x,				x,				x],
 	'MIO_PIN_03': [	_*'qspi0 io1',	_*'trace data9',	_*'sram/nor data0',	_*'nand we_b',		_*'sd1 power',	_*'gpio',	x,				x,					x,				x,				x,				x,				x],
@@ -91,10 +117,10 @@ z7000_ps_param_demo = {
 	'MIO_PIN_25': [	_*'gem0 rxd2',	_*'trace ctrl',		_*'sram/nor addr10',x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'pjtag tms',	_*'sd1 data1',	_*'spi1 ss0',	x,				_*'uart1 rxd'],
 	'MIO_PIN_26': [	_*'gem0 rxd3',	_*'trace data0',	_*'sram/nor addr11',x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'swdt clk',	_*'sd1 data2',	_*'spi1 ss1',	x,				_*'uart0 rxd'],
 	'MIO_PIN_27': [	_*'gem0 rx_clk',_*'trace data1',	_*'sram/nor addr12',x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				_*'uart0 txd'],
-	'MIO_PIN_28': [	_*'gem1 tx_clk',_*'usb0 data4',		_*'sram/nor addr13',x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	0*'ttc1 wave',	_*'uart1 txd'],
-	'MIO_PIN_29': [	_*'gem1 txd0',	_*'usb0 dir',		_*'sram/nor addr14',x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 miso',	_*'spi0 miso',	0*'ttc1 clk',	_*'uart1 rxd'],
-	'MIO_PIN_30': [	_*'gem1 txd1',	_*'usb0 stp',		_*'sram/nor addr15',x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	0*'ttc0 wave',	_*'uart0 rxd'],
-	'MIO_PIN_31': [	_*'gem1 txd2',	_*'usb0 nxt',		_*'sram/nor addr16',x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				_*'sd0 data1',	_*'spi0 ss1',	1*'ttc0 clk',	_*'uart0 txd'],
+	'MIO_PIN_28': [	_*'gem1 tx_clk',_*'usb0 data4',		_*'sram/nor addr13',x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	_*'ttc1 wave',	_*'uart1 txd'],
+	'MIO_PIN_29': [	_*'gem1 txd0',	_*'usb0 dir',		_*'sram/nor addr14',x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 miso',	_*'spi0 miso',	_*'ttc1 clk',	_*'uart1 rxd'],
+	'MIO_PIN_30': [	_*'gem1 txd1',	_*'usb0 stp',		_*'sram/nor addr15',x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	_*'ttc0 wave',	_*'uart0 rxd'],
+	'MIO_PIN_31': [	_*'gem1 txd2',	_*'usb0 nxt',		_*'sram/nor addr16',x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				_*'sd0 data1',	_*'spi0 ss1',	_*'ttc0 clk',	_*'uart0 txd'],
 	'MIO_PIN_32': [	_*'gem1 txd3',	_*'usb0 data0',		_*'sram/nor addr17',x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 data2',	_*'spi0 ss2',	x,				_*'uart1 txd'],
 	'MIO_PIN_33': [	_*'gem1 tx_ctl',_*'usb0 data1',		_*'sram/nor addr18',x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 data3',	_*'spi0 mosi',	x,				_*'uart1 rxd'],
 	'MIO_PIN_34': [	_*'gem1 rx_clk',_*'usb0 data2',		_*'sram/nor addr19',x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'pjtag tdi',	_*'sd1 data0',	_*'spi1 mosi',	x,				_*'uart0 rxd'],
@@ -103,10 +129,10 @@ z7000_ps_param_demo = {
 	'MIO_PIN_37': [	_*'gem1 rxd2',	_*'usb0 data5',		_*'sram/nor addr22',x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'pjtag tms',	_*'sd1 data1',	_*'spi1 ss0',	x,				_*'uart1 rxd'],
 	'MIO_PIN_38': [	_*'gem1 rxd3',	_*'usb0 data6',		_*'sram/nor addr23',x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'swdt clk',	_*'sd1 data2',	_*'spi1 ss1',	x,				_*'uart0 rxd'],
 	'MIO_PIN_39': [	_*'gem1 rx_ctl',_*'usb0 data7',		_*'sram/nor addr24',x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				_*'uart0 txd'],
-	'MIO_PIN_40': [	x,				_*'usb1 data4',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	0*'ttc1 wave',	_*'uart1 txd'],
-	'MIO_PIN_41': [	x,				_*'usb1 dir',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 miso',	_*'spi0 miso',	0*'ttc1 clk',	_*'uart1 rxd'],
-	'MIO_PIN_42': [	x,				_*'usb1 stp',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	0*'ttc0 wave',	_*'uart0 rxd'],
-	'MIO_PIN_43': [	x,				_*'usb1 nxt',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				_*'sd0 data1',	_*'spi0 ss1',	1*'ttc0 clk',	_*'uart0 txd'],
+	'MIO_PIN_40': [	x,				_*'usb1 data4',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	_*'ttc1 wave',	_*'uart1 txd'],
+	'MIO_PIN_41': [	x,				_*'usb1 dir',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 miso',	_*'spi0 miso',	_*'ttc1 clk',	_*'uart1 rxd'],
+	'MIO_PIN_42': [	x,				_*'usb1 stp',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	_*'ttc0 wave',	_*'uart0 rxd'],
+	'MIO_PIN_43': [	x,				_*'usb1 nxt',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				_*'sd0 data1',	_*'spi0 ss1',	_*'ttc0 clk',	_*'uart0 txd'],
 	'MIO_PIN_44': [	x,				_*'usb1 data0',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 data2',	_*'spi0 ss2',	x,				_*'uart1 txd'],
 	'MIO_PIN_45': [	x,				_*'usb1 data1',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 data3',	_*'spi0 mosi',	x,				_*'uart1 rxd'],
 	'MIO_PIN_46': [	x,				_*'usb1 data2',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'pjtag tdi',	_*'sd1 data0',	_*'spi1 mosi',	x,				_*'uart0 rxd'],
@@ -204,24 +230,24 @@ def in_range(f, frange):
 class Zynq7000:
     def __init__(self, param):
         self.param = param
-        self.CRYSTAL_FREQ = Clock(43.333333, 30, 60)
-        self.APU_FREQ = Clock(666.666666, 50, 667, oc=1) # default from ARM PLL
+        self.CRYSTAL_FREQ = Clock('CRYSTAL', 43.333333, 30, 60)
+        self.APU_FREQ = Clock('APU', 666.666666, 50, 667, oc=1) # default from ARM PLL
         self.APU_CLK_RATIO = '6:2:1' # or 4:2:1
-        self.DDR_FREQ = Clock(533.333333, 200, 534, oc=1) # default from DDR PLL
-        self.FCLK0_FREQ = Clock(50, 0.1, 250, disable=0) # FCLK and peripheral default from IO PLL
-        self.FCLK1_FREQ = Clock(50, 0.1, 250, disable=1)
-        self.FCLK2_FREQ = Clock(50, 0.1, 250, disable=1)
-        self.FCLK3_FREQ = Clock(50, 0.1, 250, disable=1)
-        self.QSPI_FREQ = Clock(200, 10, 200, disable=1, auto=1)
-        self.SMC_FREQ = Clock(100, 10, 100, disable=1, auto=1) # static memory controller
-        self.ENET0_FREQ = Clock(125, 0.1, 125, disable=0, auto=1)
-        self.ENET1_FREQ = Clock(125, 0.1, 125, disable=1, auto=1)
-        self.SDIO_FREQ = Clock(100, 10, 125, disable=1, auto=1)
-        self.SPI_FREQ = Clock(170, 0, 200, disable=0, auto=1, tolerance=100)
-        self.UART_FREQ = Clock(100, 10, 100, disable=0, auto=1)
-        self.CAN_FREQ = Clock(100, 0.1, 100, disable=1, auto=1)
-        self.PCAP_FREQ = Clock(200, 10, 200, auto=1) # processor configuration access point, for loading bitstream from PS
-        self.DCI_FREQ = Clock(10.1, 0.1, 177, auto=1) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
+        self.DDR_FREQ = Clock('DDR', 533.333333, 200, 534, oc=1) # default from DDR PLL
+        self.FCLK0_FREQ = Clock('FCLK0', 50, 0.1, 250, disable=0, has_div1=1) # FCLK and peripheral default from IO PLL
+        self.FCLK1_FREQ = Clock('FCLK1', 50, 0.1, 250, disable=1, has_div1=1)
+        self.FCLK2_FREQ = Clock('FCLK2', 50, 0.1, 250, disable=1, has_div1=1)
+        self.FCLK3_FREQ = Clock('FCLK3', 50, 0.1, 250, disable=1, has_div1=1)
+        self.QSPI_FREQ = Clock('QSPI', 200, 10, 200, disable=1, auto=1)
+        self.SMC_FREQ = Clock('SMC', 100, 10, 100, disable=1, auto=1) # static memory controller
+        self.ENET0_FREQ = Clock('ENET0', 125, 0.1, 125, disable=0, auto=1)
+        self.ENET1_FREQ = Clock('ENET1', 125, 0.1, 125, disable=1, auto=1)
+        self.SDIO_FREQ = Clock('SDIO', 100, 10, 125, disable=1, auto=1)
+        self.SPI_FREQ = Clock('SPI', 170, 0, 200, disable=0, auto=1, tolerance=100)
+        self.UART_FREQ = Clock('UART', 100, 10, 100, disable=0, auto=1)
+        self.CAN_FREQ = Clock('CAN', 100, 0.1, 100, disable=1, auto=1)
+        self.PCAP_FREQ = Clock('PCAP', 200, 10, 200, auto=1) # processor configuration access point, for loading bitstream from PS
+        self.DCI_FREQ = Clock('DCI', 10.1, 0.1, 177, auto=1, has_div1=1) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
 
         self.pll_mul_min = 13
         self.pll_mul_max = 48
@@ -244,7 +270,7 @@ class Zynq7000:
                         r_l_h_mut, [2] + r_l_h_abs, [1], opt='div',
                         freq_range=(self.APU_FREQ.lower, self.APU_FREQ.upper))
         self.arm_pll_mul = m
-        self.arm_pll_div0 = d0 # usually 2
+        self.APU_FREQ.div0 = d0 # usually 2
         self.APU_FREQ.actual = xtal*m/d0
         print("ARM PLL:", xtal, '*', m, '=', xtal*m, 'MHz')
         print("\tAPU:", '/', d0, '=', self.APU_FREQ.actual, 'MHz (requested', self.APU_FREQ.freq, 'MHz)')
@@ -256,7 +282,7 @@ class Zynq7000:
                         r_l_h_mut, [2], [1], opt='div', 
                         freq_range=(self.DDR_FREQ.lower, self.DDR_FREQ.upper))
         self.ddr_pll_mul = m
-        self.ddr_pll_div0 = d0 # now fixed to 2
+        self.DDR_FREQ.div0 = d0 # now fixed to 2
         self.DDR_FREQ.actual = xtal*m/d0
         print("DDR PLL:", xtal, '*', m, '=', xtal*m, 'MHz')
         print("\tDDR:", '/', d0, '=', self.DDR_FREQ.actual, 'MHz (requested', self.DDR_FREQ.freq, 'MHz)')
@@ -264,8 +290,8 @@ class Zynq7000:
             print("\tWarning: DDR PLL deviation is large!")
         m, d0, d1, dev = calc_pll_muldiv(xtal, self.DCI_FREQ.freq,
                         [self.ddr_pll_mul], r_l_h_abs, r_l_h_abs, opt='div')
-        self.dci_div0 = d0
-        self.dci_div1 = d1
+        self.DCI_FREQ.div0 = d0
+        self.DCI_FREQ.div1 = d1
         self.DCI_FREQ.actual = xtal*m/(d0*d1)
         print("\tDCI:", '/', d0, '/', d1, '=', self.DCI_FREQ.actual, 'MHz (requested', self.DCI_FREQ.freq, 'MHz)')
         if dev > 0.1:
@@ -275,6 +301,7 @@ class Zynq7000:
                        self.QSPI_FREQ, self.SMC_FREQ, self.ENET0_FREQ, self.ENET1_FREQ, 
                        self.SDIO_FREQ, self.SPI_FREQ, self.UART_FREQ, self.CAN_FREQ,
                        self.PCAP_FREQ]
+        # Find best IO multiplier
         dev_sum_min = 9e9
         mbest = -1
         for m in r_l_h_mut:
@@ -290,64 +317,21 @@ class Zynq7000:
                 mbest = m
         self.io_pll_mul = mbest
         print("IO PLL:", xtal, '*', mbest, '=', xtal*mbest, 'MHz')
-        # for PERIPH in periph_list:
-            # x, d0, d1, x = calc_pll_muldiv(xtal, PERIPH.freq,
-                             # [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                             # freq_range=(PERIPH.lower, PERIPH.upper),
-                             # tolerance=PERIPH.tolerance)
-            # if not PERIPH.disable:
-                # print("\tSDIO:", '/', d0, '=', self.SDIO_FREQ.actual,
-                      # 'MHz (requested', self.SDIO_FREQ.freq, 'MHz)')
-
-        PERIPH = self.SDIO_FREQ
-        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
-                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                         freq_range=(PERIPH.lower, PERIPH.upper),
-                         tolerance=PERIPH.tolerance)
-        self.sdio_div = d0
-        self.SDIO_FREQ.actual = xtal*mbest/(d0)
-        if not PERIPH.disable:
-            print("\tSDIO:", '/', d0, '=', self.SDIO_FREQ.actual, 'MHz (requested', self.SDIO_FREQ.freq, 'MHz)')
-        PERIPH = self.UART_FREQ
-        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
-                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                         freq_range=(PERIPH.lower, PERIPH.upper),
-                         tolerance=PERIPH.tolerance)
-        self.uart_div = d0
-        self.UART_FREQ.actual = xtal*mbest/(d0)
-        if not PERIPH.disable:
-            print("\tUART:", '/', d0, '=', self.UART_FREQ.actual, 'MHz (requested', self.UART_FREQ.freq, 'MHz)')
-        PERIPH = self.PCAP_FREQ
-        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
-                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                         freq_range=(PERIPH.lower, PERIPH.upper),
-                         tolerance=PERIPH.tolerance)
-        self.uart_div = d0
-        self.PCAP_FREQ.actual = xtal*mbest/(d0)
-        if not PERIPH.disable:
-            print("\tPCAP:", '/', d0, '=', self.PCAP_FREQ.actual, 'MHz (requested', self.PCAP_FREQ.freq, 'MHz)')
-
-        PERIPH = self.FCLK0_FREQ
-        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
-                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                         freq_range=(PERIPH.lower, PERIPH.upper),
-                         tolerance=PERIPH.tolerance)
-        self.fclk0_div0 = d0
-        self.fclk0_div1 = d1
-        self.FCLK0_FREQ.actual = xtal*mbest/(d0)
-        if not PERIPH.disable:
-            print("\tFCLK0:", '/', d0, '/', d1, '=', self.FCLK0_FREQ.actual, 'MHz (requested', self.FCLK0_FREQ.freq, 'MHz)')
-        PERIPH = self.FCLK1_FREQ
-        x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
-                         [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                         freq_range=(PERIPH.lower, PERIPH.upper),
-                         tolerance=PERIPH.tolerance)
-        self.fclk1_div0 = d0
-        self.fclk1_div1 = d1
-        self.FCLK1_FREQ.actual = xtal*mbest/(d0)
-        if not PERIPH.disable:
-            print("\tFCLK1:", '/', d0, '/', d1, '=', self.FCLK1_FREQ.actual, 'MHz (requested', self.FCLK1_FREQ.freq, 'MHz)')
-
+        # Find each peripheral's divisor with the best m deterimined
+        for PERIPH in periph_list:
+            x, d0, d1, x = calc_pll_muldiv(xtal, PERIPH.freq,
+                             [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
+                             freq_range=(PERIPH.lower, PERIPH.upper),
+                             tolerance=PERIPH.tolerance)
+            PERIPH.actual = xtal*mbest/(d0*d1)
+            PERIPH.div0 = d0
+            PERIPH.div1 = d1
+            if not PERIPH.disable:
+                print('\t', PERIPH.name, ':', '/', d0, ('/ ' + str(d1)) if PERIPH.has_div1 else '',
+                      '=', PERIPH.actual, 'MHz (requested', PERIPH.freq, 'MHz)')
+        print(self.UART_FREQ.actual)
+        print(self.UART_FREQ.div0)
+        print(self.UART_FREQ.div1)
 
         self.param_calculated = True
 
@@ -378,7 +362,7 @@ class Zynq7000:
         pll.add(zar, 'slcr', 'pll_status', 'arm_pll_lock', 1, poll=1)
         pll.add(zar, 'slcr', 'arm_pll_ctrl', 'pll_bypass_force', disable)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'srcsel', ARM_ARM_PLL)
-        pll.add(zar, 'slcr', 'arm_clk_ctrl', 'divisor', self.arm_pll_div0)
+        pll.add(zar, 'slcr', 'arm_clk_ctrl', 'divisor', self.APU_FREQ.div0)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_6or4xclkact', enable)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_3or2xclkact', enable)
         pll.add(zar, 'slcr', 'arm_clk_ctrl', 'cpu_1xclkact', enable)
@@ -417,65 +401,104 @@ class Zynq7000:
         # clock enables for each of each PS peripheral kinds (eg. UART0-1, FCLK0-3) are also set here
         clock.add(zar, 'slcr', 'slcr_unlock', 'unlock_key', unlock_key)
         clock.add(zar, 'slcr', 'dci_clk_ctrl', 'clkact', enable)
-        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor0', self.dci_div0)
-        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor1', self.dci_div1)
+        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor0', self.DCI_FREQ.div0)
+        clock.add(zar, 'slcr', 'dci_clk_ctrl', 'divisor1', self.DCI_FREQ.div1)
 
         clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'clkact0', enable)
         clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'clkact1', enable)
         clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'divisor', self.sdio_div)
+        clock.add(zar, 'slcr', 'sdio_clk_ctrl', 'divisor', self.SDIO_FREQ.div0)
 
         clock.add(zar, 'slcr', 'uart_clk_ctrl', 'clkact0', enable)
         clock.add(zar, 'slcr', 'uart_clk_ctrl', 'clkact1', enable)
         clock.add(zar, 'slcr', 'uart_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'uart_clk_ctrl', 'divisor', self.uart_div)
+        clock.add(zar, 'slcr', 'uart_clk_ctrl', 'divisor', self.SDIO_FREQ.div0)
 
         clock.add(zar, 'slcr', 'pcap_clk_ctrl', 'clkact', enable)
         clock.add(zar, 'slcr', 'pcap_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'pcap_clk_ctrl', 'divisor', -1)
+        clock.add(zar, 'slcr', 'pcap_clk_ctrl', 'divisor', self.PCAP_FREQ.div0)
         # TODO: more peripherals to support
         clock.add(zar, 'slcr', 'fpga0_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'fpga0_clk_ctrl', 'divisor0', -1)
-        clock.add(zar, 'slcr', 'fpga0_clk_ctrl', 'divisor1', -1)
+        clock.add(zar, 'slcr', 'fpga0_clk_ctrl', 'divisor0', self.FCLK0_FREQ.div0)
+        clock.add(zar, 'slcr', 'fpga0_clk_ctrl', 'divisor1', self.FCLK0_FREQ.div1)
         clock.add(zar, 'slcr', 'fpga1_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'fpga1_clk_ctrl', 'divisor0', -1)
-        clock.add(zar, 'slcr', 'fpga1_clk_ctrl', 'divisor1', -1)
+        clock.add(zar, 'slcr', 'fpga1_clk_ctrl', 'divisor0', self.FCLK1_FREQ.div0)
+        clock.add(zar, 'slcr', 'fpga1_clk_ctrl', 'divisor1', self.FCLK1_FREQ.div1)
         clock.add(zar, 'slcr', 'fpga2_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'fpga2_clk_ctrl', 'divisor0', -1)
-        clock.add(zar, 'slcr', 'fpga2_clk_ctrl', 'divisor1', -1)
+        clock.add(zar, 'slcr', 'fpga2_clk_ctrl', 'divisor0', self.FCLK2_FREQ.div0)
+        clock.add(zar, 'slcr', 'fpga2_clk_ctrl', 'divisor1', self.FCLK2_FREQ.div1)
         clock.add(zar, 'slcr', 'fpga3_clk_ctrl', 'srcsel', IO_IO_PLL)
-        clock.add(zar, 'slcr', 'fpga3_clk_ctrl', 'divisor0', -1)
-        clock.add(zar, 'slcr', 'fpga3_clk_ctrl', 'divisor1', -1)
+        clock.add(zar, 'slcr', 'fpga3_clk_ctrl', 'divisor0', self.FCLK3_FREQ.div0)
+        clock.add(zar, 'slcr', 'fpga3_clk_ctrl', 'divisor1', self.FCLK3_FREQ.div1)
         clock.add(zar, 'slcr', 'clk_621_true', 'clk_621_true', enable if self.APU_CLK_RATIO == '6:2:1' else disable)
         # AMBA peripheral clocks, enable all for simplicity
         # TODO: disable unused ones
         clock.add(zar, 'slcr', 'aper_clk_ctrl', 'dma_cpu_2xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'usb0_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'usb1_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'gem0_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'gem1_cpu_1xclkact', enable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'usb0_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'usb1_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'gem0_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'gem1_cpu_1xclkact', disable)
         clock.add(zar, 'slcr', 'aper_clk_ctrl', 'sdi0_cpu_1xclkact', enable)
         clock.add(zar, 'slcr', 'aper_clk_ctrl', 'sdi1_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'spi0_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'spi1_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'can0_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'can1_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'i2c0_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'i2c1_cpu_1xclkact', enable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'spi0_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'spi1_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'can0_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'can1_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'i2c0_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'i2c1_cpu_1xclkact', disable)
         clock.add(zar, 'slcr', 'aper_clk_ctrl', 'uart0_cpu_1xclkact', enable)
         clock.add(zar, 'slcr', 'aper_clk_ctrl', 'uart1_cpu_1xclkact', enable)
         clock.add(zar, 'slcr', 'aper_clk_ctrl', 'gpio_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'lqspi_cpu_1xclkact', enable)
-        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'smc_cpu_1xclkact', enable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'lqspi_cpu_1xclkact', disable)
+        clock.add(zar, 'slcr', 'aper_clk_ctrl', 'smc_cpu_1xclkact', disable)
         clock.add(zar, 'slcr', 'slcr_lock', 'lock_key', lock_key)
 
+        # MIOs and Peripherals
+        # TODO: more granular checking
         mio.add(zar, 'slcr', 'slcr_unlock', 'unlock_key', unlock_key)
-        # mio.add(zar, 'slcr', 'fpga_rst_ctrl', 'unlock_key', unlock_key)
-        mio.add(zar, 'slcr', 'slcr_lock', 'lock_key', lock_key)
-        # Need tree-like table for MIO functions, and a way to walk the table from python config
-        print(pll.emit())
-        print(clock.emit())
+        peripherals.add(zar, 'slcr', 'slcr_unlock', 'unlock_key', unlock_key)
+        for i in range(0, 53+1):
+            mio_pin = 'MIO_PIN_%02d' % i
+            try:
+                used = 13 - self.param[mio_pin].count('') 
+            except KeyError:
+                continue
+            if used == 0:
+                continue
+            if used > 1:
+                print('Error: MIO %02d used multiple times!' % i)
+                return # TODO: abort
+            print(mio_pin, ''.join(self.param[mio_pin]))
+            # MIO pin mux function select
+            l0_sel, l1_sel, l2_sel, l3_sel = z7000_ps_param_L_sel(self.param[mio_pin])
+            mio.add(zar, 'slcr', mio_pin, 'L0_SEL', l0_sel)
+            mio.add(zar, 'slcr', mio_pin, 'L1_SEL', l1_sel)
+            mio.add(zar, 'slcr', mio_pin, 'L2_SEL', l2_sel)
+            mio.add(zar, 'slcr', mio_pin, 'L3_SEL', l3_sel)
+            # MIO default pin properties
+            mio.add(zar, 'slcr', mio_pin, 'TRI_ENABLE', enable)
+            mio.add(zar, 'slcr', mio_pin, 'Speed', slow)
+            mio.add(zar, 'slcr', mio_pin, 'IO_Type', lvcmos33)
+            mio.add(zar, 'slcr', mio_pin, 'PULLUP', disable if i in mios_nopullup else enable)
+            mio.add(zar, 'slcr', mio_pin, 'DisableRcvr', enable)
+
+        if 1:
+            mio.add(zar, 'slcr', 'sd0_wp_cd_sel', 'sdio0_wp_sel', 55) # EMIO by default
+            mio.add(zar, 'slcr', 'sd0_wp_cd_sel', 'sdio0_cd_sel', 55) # EMIO by default
+        if 0:
+            mio.add(zar, 'slcr', 'sd1_wp_cd_sel', 'sdio1_wp_sel', 55) # EMIO by default
+            mio.add(zar, 'slcr', 'sd1_wp_cd_sel', 'sdio1_cd_sel', 55) # EMIO by default
+
+
+
+        peripherals.add(zar, 'devcfg', 'xdcfg_ctrl_offset', 'pcfg_por_cnt_4k', 0) # 4k instead of 64k, faster startup, optional
+        peripherals.add(zar, 'slcr', 'slcr_lock', 'lock_key', lock_key)
+
+        # print(pll.emit())
+        # print(clock.emit())
         print(mio.emit())
+        print(peripherals.emit())
+        print(ddr.emit())
 
     def xparameter_h_gen(self):
         if not self.param_calculated:
