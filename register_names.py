@@ -58,7 +58,7 @@ class BaseRegister:
         for e in self.entries:
             if e.name.lower() == entry.lower():
                 return e
-        print("Entry", name, "not found in BaseRegister", self.name, "!")
+        print("Entry", entry, "not found in BaseRegister", self.name, "!")
         return None
 
     def a2e(self, addr):
@@ -464,26 +464,26 @@ ddrc = BaseRegister([0xf8006000], [
     Entry("lpddr_ctrl2", 0x000002B0, 22, "rw", 0x003C0015, "LPDDR2 Control 2"),
     Entry("lpddr_ctrl3", 0x000002B4, 18, "rw", 0x00000601, "LPDDR2 Control 3")], name='ddrc')
 devcfg = BaseRegister([0xf8007000], [
-    Entry("XDCFG_CTRL_OFFSET", 0xf8007000, 32, "mixed", 0x0C006000, "Control Register"),
-    Entry("XDCFG_LOCK_OFFSET", 0xf8007004, 32, "mixed", 0x00000000, "Locks for the Control Register."),
-    Entry("XDCFG_CFG_OFFSET", 0xf8007008, 32, "rw", 0x00000508, "Configuration Register: This register contains configuration information for the AXI transfers, and other general setup."),
-    Entry("XDCFG_INT_STS_OFFSET", 0xf800700C, 32, "mixed", 0x00000000, "Interrupt Status"),
-    Entry("XDCFG_INT_MASK_OFFSET", 0xf8007010, 32, "rw", 0xFFFFFFFF, "Interrupt Mask."),
-    Entry("XDCFG_STATUS_OFFSET", 0xf8007014, 32, "mixed", 0x40000820, "Miscellaneous Status."),
-    Entry("XDCFG_DMA_SRC_ADDR_OFFSET", 0xf8007018, 32, "rw", 0x00000000, "DMA Source Address."),
-    Entry("XDCFG_DMA_DEST_ADDR_OFFSET", 0xf800701C, 32, "rw", 0x00000000, "DMA Destination Address."),
-    Entry("XDCFG_DMA_SRC_LEN_OFFSET", 0xf8007020, 32, "rw", 0x00000000, "DMA Source Transfer Length."),
-    Entry("XDCFG_DMA_DEST_LEN_OFFSET", 0xf8007024, 32, "rw", 0x00000000, "DMA Destination Transfer Length."),
-    Entry("XDCFG_MULTIBOOT_ADDR_OFFSET", 0xf800702C, 13, "rw", 0x00000000, "Multi-Boot Address Pointer."),
-    Entry("XDCFG_UNLOCK_OFFSET", 0xf8007034, 32, "rw", 0x00000000, "Unlock Control."),
-    Entry("XDCFG_MCTRL_OFFSET", 0xf8007080, 32, "mixed", "x", "Miscellaneous Control."),
-    Entry("XADCIF_CFG", 0xf8007100, 32, "rw", 0x00001114, "XADC Interface Configuration."),
-    Entry("XADCIF_INT_STS", 0xf8007104, 32, "mixed", 0x00000200, "XADC Interface Interrupt Status."),
-    Entry("XADCIF_INT_MASK", 0xf8007108, 32, "rw", 0xFFFFFFFF, "XADC Interface Interrupt Mask."),
-    Entry("XADCIF_MSTS", 0xf800710C, 32, "ro", 0x00000500, "XADC Interface Miscellaneous Status."),
-    Entry("XADCIF_CMDFIFO", 0xf8007110, 32, "wo", 0x00000000, "XADC Interface Command FIFO Data Port"),
-    Entry("XADCIF_RDFIFO", 0xf8007114, 32, "ro", 0x00000000, "XADC Interface Data FIFO Data Port"),
-    Entry("XADCIF_MCTL", 0xf8007118, 32, "rw", 0x00000010, "XADC Interface Miscellaneous Control.")], name='devcfg')
+    Entry("XDCFG_CTRL_OFFSET", 0x00000000, 32, "mixed", 0x0C006000, "Control Register"),
+    Entry("XDCFG_LOCK_OFFSET", 0x00000004, 32, "mixed", 0x00000000, "Locks for the Control Register."),
+    Entry("XDCFG_CFG_OFFSET", 0x00000008, 32, "rw", 0x00000508, "Configuration Register: This register contains configuration information for the AXI transfers, and other general setup."),
+    Entry("XDCFG_INT_STS_OFFSET", 0x0000000C, 32, "mixed", 0x00000000, "Interrupt Status"),
+    Entry("XDCFG_INT_MASK_OFFSET", 0x00000010, 32, "rw", 0xFFFFFFFF, "Interrupt Mask."),
+    Entry("XDCFG_STATUS_OFFSET", 0x00000014, 32, "mixed", 0x40000820, "Miscellaneous Status."),
+    Entry("XDCFG_DMA_SRC_ADDR_OFFSET", 0x00000018, 32, "rw", 0x00000000, "DMA Source Address."),
+    Entry("XDCFG_DMA_DEST_ADDR_OFFSET", 0x0000001C, 32, "rw", 0x00000000, "DMA Destination Address."),
+    Entry("XDCFG_DMA_SRC_LEN_OFFSET", 0x00000020, 32, "rw", 0x00000000, "DMA Source Transfer Length."),
+    Entry("XDCFG_DMA_DEST_LEN_OFFSET", 0x00000024, 32, "rw", 0x00000000, "DMA Destination Transfer Length."),
+    Entry("XDCFG_MULTIBOOT_ADDR_OFFSET", 0x0000002C, 13, "rw", 0x00000000, "Multi-Boot Address Pointer."),
+    Entry("XDCFG_UNLOCK_OFFSET", 0x00000034, 32, "rw", 0x00000000, "Unlock Control."),
+    Entry("XDCFG_MCTRL_OFFSET", 0x00000080, 32, "mixed", "x", "Miscellaneous Control."),
+    Entry("XADCIF_CFG", 0x00000100, 32, "rw", 0x00001114, "XADC Interface Configuration."),
+    Entry("XADCIF_INT_STS", 0x00000104, 32, "mixed", 0x00000200, "XADC Interface Interrupt Status."),
+    Entry("XADCIF_INT_MASK", 0x00000108, 32, "rw", 0xFFFFFFFF, "XADC Interface Interrupt Mask."),
+    Entry("XADCIF_MSTS", 0x0000010C, 32, "ro", 0x00000500, "XADC Interface Miscellaneous Status."),
+    Entry("XADCIF_CMDFIFO", 0x00000110, 32, "wo", 0x00000000, "XADC Interface Command FIFO Data Port"),
+    Entry("XADCIF_RDFIFO", 0x00000114, 32, "ro", 0x00000000, "XADC Interface Data FIFO Data Port"),
+    Entry("XADCIF_MCTL", 0x00000118, 32, "rw", 0x00000010, "XADC Interface Miscellaneous Control.")], name='devcfg')
 uart = BaseRegister([0xe0000000, 0xe0001000], [
     Entry("XUARTPS_CR_OFFSET", 0x00000000, 32, "mixed", 0x00000128, "UART Control Register"),
     Entry("XUARTPS_MR_OFFSET", 0x00000004, 32, "mixed", 0x00000000, "UART Mode Register"),
@@ -502,7 +502,7 @@ uart = BaseRegister([0xe0000000, 0xe0001000], [
     Entry("Flow_delay_reg0", 0x00000038, 32, "mixed", 0x00000000, "Flow Control Delay Register"),
     Entry("Tx_FIFO_trigger_level0", 0x00000044, 32, "mixed", 0x00000020, "Transmitter FIFO Trigger Level Register")], name='uart')
 
-zynq7_allregisters = Zynq7_AllRegisters([slcr, uart])
+zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart])
 pll = PS7_InitData('pll')
 clock = PS7_InitData('clock')
 mio = PS7_InitData('mio')

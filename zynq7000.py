@@ -16,17 +16,17 @@ class Clock:
         self.div0 = -1
         self.div1 = -1
         self.has_div1 = has_div1
-        self.tolerance = tolerance
+        self.tolerance = tolerance # weight when doing optmization
 
-class Uart:
-    def __init__(self, enabled, num, baud=115200):
-        self.enabled = enabled
-        self.baud = baud
+# class Uart:
+    # def __init__(self, enabled, num, baud=115200):
+        # self.enabled = enabled
+        # self.baud = baud
 
-class SD:
-    def __init__(self, enabled, num, baud=115200):
-        self.enabled = enabled
-        self.baud = baud
+# class SD:
+    # def __init__(self, enabled, num, baud=115200):
+        # self.enabled = enabled
+        # self.baud = baud
 
 # UG585, Page 744
 # PLL frequency control settings
@@ -143,13 +143,15 @@ z7000_ps_param_demo = {
 	'MIO_PIN_51': [	x,				_*'usb1 data7',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				_*'uart0 txd'],
 	'MIO_PIN_52': [	x,				x,					x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		_*'swdt clk',	_*'mdio0 clk',	_*'mdio1 clk',	x,				_*'uart1 txd'],
 	'MIO_PIN_53': [	x,				x,					x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'swdt rst',	_*'mdio0 data',	_*'mdio1 data',	x,				_*'uart1 rxd'],
-    'gpio'  : {},
-    'uart0' : { 'baud': 115200 },
-    'uart1' : { 'baud': 9600 }, 
-    'sd0'   : {},
+    'uart0' : { 'baud' : 115200 }, 
+    # 'uart1' : { 'baud': 9600 }, # we have to explicitly specify in case of EMIO
+    # 'sd0'   : {}, # no need to enable again, it's already in the table
     'freq'  : { 'crystal'  : 33.333333,
-                'fclk0'    : 50,
-                'fclk1'    : 50}
+                'fclk0'    : 100,
+                'fclk1'    : 50,
+                'fclk2'    : 25
+                # 'uart'     : 100 # can customize peripheral freq, but not recommended
+               }
 	}
 
 # input: input frequency, output frequecy, multiplier range, divisor0 range, divisor1 range
@@ -228,26 +230,27 @@ def in_range(f, frange):
     return f >= frange[0] and f <= frange[1]
 
 class Zynq7000:
-    def __init__(self, param):
-        self.param = param
-        self.CRYSTAL_FREQ = Clock('CRYSTAL', 43.333333, 30, 60)
+    def __init__(self):
+        # ALL DEFAULT CLOCKS AND RANGES
+        self.CRYSTAL_FREQ = Clock('CRYSTAL', 33.333333, 30, 60)
         self.APU_FREQ = Clock('APU', 666.666666, 50, 667, oc=1) # default from ARM PLL
         self.APU_CLK_RATIO = '6:2:1' # or 4:2:1
         self.DDR_FREQ = Clock('DDR', 533.333333, 200, 534, oc=1) # default from DDR PLL
-        self.FCLK0_FREQ = Clock('FCLK0', 50, 0.1, 250, disable=0, has_div1=1) # FCLK and peripheral default from IO PLL
+        self.FCLK0_FREQ = Clock('FCLK0', 50, 0.1, 250, disable=1, has_div1=1) # FCLK and peripheral default from IO PLL
         self.FCLK1_FREQ = Clock('FCLK1', 50, 0.1, 250, disable=1, has_div1=1)
         self.FCLK2_FREQ = Clock('FCLK2', 50, 0.1, 250, disable=1, has_div1=1)
         self.FCLK3_FREQ = Clock('FCLK3', 50, 0.1, 250, disable=1, has_div1=1)
-        self.QSPI_FREQ = Clock('QSPI', 200, 10, 200, disable=1, auto=1)
-        self.SMC_FREQ = Clock('SMC', 100, 10, 100, disable=1, auto=1) # static memory controller
-        self.ENET0_FREQ = Clock('ENET0', 125, 0.1, 125, disable=0, auto=1)
-        self.ENET1_FREQ = Clock('ENET1', 125, 0.1, 125, disable=1, auto=1)
-        self.SDIO_FREQ = Clock('SDIO', 100, 10, 125, disable=1, auto=1)
-        self.SPI_FREQ = Clock('SPI', 170, 0, 200, disable=0, auto=1, tolerance=100)
-        self.UART_FREQ = Clock('UART', 100, 10, 100, disable=0, auto=1)
-        self.CAN_FREQ = Clock('CAN', 100, 0.1, 100, disable=1, auto=1)
-        self.PCAP_FREQ = Clock('PCAP', 200, 10, 200, auto=1) # processor configuration access point, for loading bitstream from PS
-        self.DCI_FREQ = Clock('DCI', 10.1, 0.1, 177, auto=1, has_div1=1) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
+        # Note: some devices, like uart0/uart1, shares one Clock
+        self.QSPI_FREQ = Clock('QSPI', 200, 10, 200, disable=1)
+        self.SMC_FREQ = Clock('SMC', 100, 10, 100, disable=1) # static memory controller
+        self.ENET0_FREQ = Clock('ENET0', 125, 0.1, 125, disable=1)
+        self.ENET1_FREQ = Clock('ENET1', 125, 0.1, 125, disable=1)
+        self.SDIO_FREQ = Clock('SDIO', 100, 10, 125, disable=1)
+        self.SPI_FREQ = Clock('SPI', 170, 0, 200, disable=1, tolerance=100)
+        self.UART_FREQ = Clock('UART', 100, 10, 100, disable=1)
+        self.CAN_FREQ = Clock('CAN', 100, 0.1, 100, disable=1)
+        self.PCAP_FREQ = Clock('PCAP', 200, 10, 200) # processor configuration access point, for loading bitstream from PS
+        self.DCI_FREQ = Clock('DCI', 10.1, 0.1, 177, has_div1=1) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
 
         self.pll_mul_min = 13
         self.pll_mul_max = 48
@@ -255,8 +258,55 @@ class Zynq7000:
         self.pll_muldiv_max_abs = 63
 
         self.warning_thres = 0.005
+        # We load param and calculate params separately, so user has chance to override
         self.param_calculated = False
+        self.param = None
 
+    # can check with e.g. uart0, uart1, uart
+    def check_param_enabled(self, name):
+        try:
+            p = self.param[name]
+            # Explicitly enabled
+            return True
+        except KeyError:
+            pass
+        try:
+            p = self.param['freq'][name]
+            # FCLK frequency specified
+            return True
+        except KeyError:
+            pass
+        for i in range(0, 53+1):
+            mio_pin = 'MIO_PIN_%02d' % i
+            try:
+                if ''.join(self.param[mio_pin]).find(name) != -1:
+                    # Specified in MIO
+                    return True
+            except KeyError:
+                continue
+        return False
+
+    def param_load(self, param):
+        self.param = param
+        self.UART_FREQ.disable = not self.check_param_enabled('uart')
+        self.QSPI_FREQ.disable = not self.check_param_enabled('qspi')
+        self.SPI_FREQ.disable = not self.check_param_enabled('spi')
+        self.SDIO_FREQ.disable = not self.check_param_enabled('sd')
+        try:
+            self.CRYSTAL_FREQ.freq = self.param['freq']['crystal']
+        except KeyError: pass
+        if self.check_param_enabled('fclk0'):
+            self.FCLK0_FREQ.disable = 0
+            self.FCLK0_FREQ.freq = self.param['freq']['fclk0']
+        if self.check_param_enabled('fclk1'):
+            self.FCLK1_FREQ.disable = 0
+            self.FCLK1_FREQ.freq = self.param['freq']['fclk1']
+        if self.check_param_enabled('fclk2'):
+            self.FCLK2_FREQ.disable = 0
+            self.FCLK2_FREQ.freq = self.param['freq']['fclk2']
+        if self.check_param_enabled('fclk3'):
+            self.FCLK3_FREQ.disable = 0
+            self.FCLK3_FREQ.freq = self.param['freq']['fclk3']
 
     def param_calc(self):
         xtal = self.CRYSTAL_FREQ.freq
@@ -306,11 +356,11 @@ class Zynq7000:
         mbest = -1
         for m in r_l_h_mut:
             dev_sum = 0
-            for PERIPH in [p for p in periph_list if not p.disable]:
-                x, d0, d1, dev = calc_pll_muldiv(xtal, PERIPH.freq,
-                                 [m], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                                 freq_range=(PERIPH.lower, PERIPH.upper),
-                                 tolerance=PERIPH.tolerance)
+            for CLOCK in [p for p in periph_list if not p.disable]:
+                x, d0, d1, dev = calc_pll_muldiv(xtal, CLOCK.freq,
+                                 [m], r_l_h_abs, r_l_h_abs if CLOCK.has_div1 else [1],
+                                 freq_range=(CLOCK.lower, CLOCK.upper),
+                                 tolerance=CLOCK.tolerance)
                 dev_sum += dev
             if dev_sum < dev_sum_min:
                 dev_sum_min = dev_sum
@@ -318,17 +368,17 @@ class Zynq7000:
         self.io_pll_mul = mbest
         print("IO PLL:", xtal, '*', mbest, '=', xtal*mbest, 'MHz')
         # Find each peripheral's divisor with the best m deterimined
-        for PERIPH in periph_list:
-            x, d0, d1, x = calc_pll_muldiv(xtal, PERIPH.freq,
-                             [mbest], r_l_h_abs, r_l_h_abs if PERIPH.has_div1 else [1],
-                             freq_range=(PERIPH.lower, PERIPH.upper),
-                             tolerance=PERIPH.tolerance)
-            PERIPH.actual = xtal*mbest/(d0*d1)
-            PERIPH.div0 = d0
-            PERIPH.div1 = d1
-            if not PERIPH.disable:
-                print('\t', PERIPH.name, ':', '/', d0, ('/ ' + str(d1)) if PERIPH.has_div1 else '',
-                      '=', PERIPH.actual, 'MHz (requested', PERIPH.freq, 'MHz)')
+        for CLOCK in periph_list:
+            x, d0, d1, x = calc_pll_muldiv(xtal, CLOCK.freq,
+                             [mbest], r_l_h_abs, r_l_h_abs if CLOCK.has_div1 else [1],
+                             freq_range=(CLOCK.lower, CLOCK.upper),
+                             tolerance=CLOCK.tolerance)
+            CLOCK.actual = xtal*mbest/(d0*d1)
+            CLOCK.div0 = d0
+            CLOCK.div1 = d1
+            if not CLOCK.disable:
+                print('\t', CLOCK.name, ':', '/', d0, ('/ ' + str(d1)) if CLOCK.has_div1 else '',
+                      '=', CLOCK.actual, 'MHz (requested', CLOCK.freq, 'MHz)')
         print(self.UART_FREQ.actual)
         print(self.UART_FREQ.div0)
         print(self.UART_FREQ.div1)
@@ -482,10 +532,10 @@ class Zynq7000:
             mio.add(zar, 'slcr', mio_pin, 'PULLUP', disable if i in mios_nopullup else enable)
             mio.add(zar, 'slcr', mio_pin, 'DisableRcvr', enable)
 
-        if 1:
+        if self.check_param_enabled('sd0'):
             mio.add(zar, 'slcr', 'sd0_wp_cd_sel', 'sdio0_wp_sel', 55) # EMIO by default
             mio.add(zar, 'slcr', 'sd0_wp_cd_sel', 'sdio0_cd_sel', 55) # EMIO by default
-        if 0:
+        if self.check_param_enabled('sd1'):
             mio.add(zar, 'slcr', 'sd1_wp_cd_sel', 'sdio1_wp_sel', 55) # EMIO by default
             mio.add(zar, 'slcr', 'sd1_wp_cd_sel', 'sdio1_cd_sel', 55) # EMIO by default
 
@@ -509,7 +559,8 @@ if __name__ == '__main__':
     for sample in ['noddr-0-uart', 'noddr-0-sd', 'noddr-0-uart-elsegpio']:
         parse_ps7_init_entries_fields("./hdf/" + sample + "/ps7_init_gpl.c")
     zynq7_allregisters.show()
-    z7 = Zynq7000(z7000_ps_param_demo)
+    z7 = Zynq7000()
+    z7.param_load(z7000_ps_param_demo)
     z7.ps7_init_gen(zynq7_allregisters)
     calc_pll_muldiv(33.333333, 50, [i for i in range(z7.pll_mul_min, z7.pll_mul_max+1)], [i for i in range(1, 63+1)], [1])
     calc_pll_muldiv(33.333333, 666.666667, [i for i in range(z7.pll_mul_min, z7.pll_mul_max+1)], [2], [1])
