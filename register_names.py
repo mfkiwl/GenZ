@@ -26,7 +26,10 @@ class Entry:
         self.fields[field.upper()] = mask
 
     def get_field_mask(self, field):
-        return self.fields[field.upper()]
+        try:
+            return self.fields[field.upper()]
+        except KeyError:
+            return 0x0
 
     def show(self):
         print(f"\t{self.name}, 0x{self.addr:08x}")
@@ -104,7 +107,11 @@ class Zynq7_AllRegisters:
         print("Addr", hex(addr), "doesn't belong to any registers!")
         return False
 
-    def find(self, basereg, entry, field, idx=0):
+    def find(self, basereg, entry, field):
+        idx = 0
+        if basereg[-1] in ['0', '1']:
+            idx = int(basereg[-1])
+            basereg = basereg[:-1]
         badret = (None, None)
         br = None
         for _br in self.baseregisters:
@@ -136,15 +143,15 @@ class PS7_InitData:
     
     # 3 kinds of emit: write(a, d), maskwrite(a, m, d), maskpoll(a, m)
     # other kinds exist, but are not used
-    def add(self, z7m, basereg, entry, field, data=0x0, poll=0):
+    def add(self, z7m, basereg, entry, field, data=0x0, poll=0, fullreg=0):
         addr, mask = z7m.find(basereg, entry, field)
-        if addr == None or mask == None:
+        if addr == None or (mask == None and not fullreg):
             print('Error finding basereg/entry/field from Zynq7_AllRegisters!')
             return False
-        self.emit_list.append((addr, mask, data, poll))
-        self.comment_list.append((basereg, entry, field, data))
+        self.emit_list.append((addr, mask if not fullreg else 0xFFFFFFFF, data, poll))
+        self.comment_list.append((basereg, entry, field if not fullreg else 'fullreg', data))
         return True
-
+    
     # Merge write to the same entry, different field, by ORing all the data/mask
     # Do not change orders. 
     def merge(self):
@@ -173,6 +180,9 @@ class PS7_InitData:
                 i += 1
         elif fmt.lower() == 'tcl':
             for addr, mask, data, poll in self.emit_list:
+                if comment:
+                    basereg, entry, field, data = self.comment_list[i]
+                    e += '# ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '\n'
                 if poll:
                     e += ('mask_poll 0X%08X, 0x%08X\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
@@ -501,8 +511,29 @@ uart = BaseRegister([0xe0000000, 0xe0001000], [
     Entry("Baud_rate_divider_reg0", 0x00000034, 32, "mixed", 0x0000000F, "Baud Rate Divider Register"),
     Entry("Flow_delay_reg0", 0x00000038, 32, "mixed", 0x00000000, "Flow Control Delay Register"),
     Entry("Tx_FIFO_trigger_level0", 0x00000044, 32, "mixed", 0x00000020, "Transmitter FIFO Trigger Level Register")], name='uart')
+qspi = BaseRegister([0xe000d000], [
+	Entry("XQSPIPS_CR_OFFSET", 0x00000000, 32, "mixed", 0x80020000, "QSPI configuration register"),
+	Entry("XQSPIPS_SR_OFFSET", 0x00000004, 32, "mixed", 0x00000004, "QSPI interrupt status register"),
+	Entry("XQSPIPS_IER_OFFSET", 0x00000008, 32, "mixed", 0x00000000, "Interrupt Enable register."),
+	Entry("XQSPIPS_IDR_OFFSET", 0x0000000C, 32, "mixed", 0x00000000, "Interrupt disable register."),
+	Entry("XQSPIPS_IMR_OFFSET", 0x00000010, 32, "ro", 0x00000000, "Interrupt mask register"),
+	Entry("XQSPIPS_ER_OFFSET", 0x00000014, 32, "mixed", 0x00000000, "SPI_Enable Register"),
+	Entry("XQSPIPS_DR_OFFSET", 0x00000018, 32, "rw", 0x00000000, "Delay Register"),
+	Entry("XQSPIPS_TXD_00_OFFSET", 0x0000001C, 32, "wo", 0x00000000, "Transmit Data Register. Keyhole addresses for the Transmit data FIFO. See also TXD1-3."),
+	Entry("XQSPIPS_RXD_OFFSET", 0x00000020, 32, "ro", 0x00000000, "Receive Data Register"),
+	Entry("XQSPIPS_SICR_OFFSET", 0x00000024, 32, "mixed", 0x000000FF, "Slave Idle Count Register"),
+	Entry("XQSPIPS_TXWR_OFFSET", 0x00000028, 32, "rw", 0x00000001, "TX_FIFO Threshold Register"),
+	Entry("RX_thres_REG", 0x0000002C, 32, "rw", 0x00000001, "RX FIFO Threshold Register"),
+	Entry("GPIO", 0x00000030, 32, "rw", 0x00000001, "General Purpose Inputs and Outputs Register for the Quad-SPI Controller core"),
+	Entry("LPBK_DLY_ADJ", 0x00000038, 32, "rw", 0x0000002D, "Loopback Master Clock Delay Adjustment Register"),
+	Entry("XQSPIPS_TXD_01_OFFSET", 0x00000080, 32, "wo", 0x00000000, "Transmit Data Register. Keyhole addresses for the Transmit data FIFO."),
+	Entry("XQSPIPS_TXD_10_OFFSET", 0x00000084, 32, "wo", 0x00000000, "Transmit Data Register. Keyhole addresses for the Transmit data FIFO."),
+	Entry("XQSPIPS_TXD_11_OFFSET", 0x00000088, 32, "wo", 0x00000000, "Transmit Data Register. Keyhole addresses for the Transmit data FIFO."),
+	Entry("XQSPIPS_LQSPI_CR_OFFSET", 0x000000A0, 32, "rw", "x", "Configuration Register specifically for the Linear Quad-SPI Controller"),
+	Entry("XQSPIPS_LQSPI_SR_OFFSET", 0x000000A4, 9, "rw", 0x00000000, "Status Register specifically for the Linear Quad-SPI Controller"),
+	Entry("MOD_ID", 0x000000FC, 32, "rw", 0x01090101, "Module Identification register")], name='qspi')
 
-zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart])
+zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart, qspi])
 pll = PS7_InitData('pll')
 clock = PS7_InitData('clock')
 mio = PS7_InitData('mio')
