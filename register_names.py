@@ -38,11 +38,12 @@ class Entry:
 
 
 class BaseRegister:
-    def __init__(self, baseaddrs, entries, name="", basemask=0xFFFFF000):
+    def __init__(self, baseaddrs, entries, name="", basemask=0xFFFFF000, highaddr='default'):
         self.name = name
         self.baseaddrs = baseaddrs
         self.entries = entries
         self.basemask = basemask
+        self.highaddr = basemask^0xFFFFFFFF if highaddr=='default' else highaddr
 
     def update_entry_field(self, entryaddr, fieldname, fieldmask):
         e = self.a2e(entryaddr)
@@ -532,6 +533,7 @@ qspi = BaseRegister([0xe000d000], [
 	Entry("XQSPIPS_LQSPI_CR_OFFSET", 0x000000A0, 32, "rw", "x", "Configuration Register specifically for the Linear Quad-SPI Controller"),
 	Entry("XQSPIPS_LQSPI_SR_OFFSET", 0x000000A4, 9, "rw", 0x00000000, "Status Register specifically for the Linear Quad-SPI Controller"),
 	Entry("MOD_ID", 0x000000FC, 32, "rw", 0x01090101, "Module Identification register")], name='qspi')
+sdio = BaseRegister([0xe0100000, 0xe0101000], [], name='sdio')
 
 zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart, qspi])
 pll = PS7_InitData('pll')

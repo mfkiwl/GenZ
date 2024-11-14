@@ -2,6 +2,7 @@
 from register_names import *
 # from pathlib import Path
 import os
+import math
 
 class Clock:
     def __init__(self, name, requested, lower, upper,
@@ -138,7 +139,7 @@ z7000_ps_param_demo = {
     'uart0' : { }, 
     'uart1' : { 'baud': 9600 }, # we have to explicitly specify in case of EMIO
     # 'sd0'   : {}, # no need to enable again, it's already in the table
-    'freq'  : { 'crystal'  : 33.333333,
+    'freq'  : { 'crystal'  : 33.333333333,
                 'fclk0'    : 100,
                 'fclk1'    : 50,
                 'fclk2'    : 25
@@ -225,14 +226,14 @@ class Zynq7000:
     def __init__(self):
         print("Zynq7000: Init default")
         # ALL DEFAULT CLOCKS AND RANGES
-        self.CRYSTAL_FREQ = Clock('CRYSTAL', 33.333333, 30, 60)
+        self.CRYSTAL_FREQ = Clock('CRYSTAL', 33.333333333, 30, 60)
         self.APU_FREQ = Clock('APU', 666.666666, 50, 667, oc=1) # default from ARM PLL
         self.APU_CLK_RATIO = '6:2:1' # or 4:2:1
         self.DDR_FREQ = Clock('DDR', 533.333333, 200, 534, oc=1) # default from DDR PLL
-        self.FCLK0_FREQ = Clock('FCLK0', 50, 0.1, 250, disable=1, has_div1=1) # FCLK and peripheral default from IO PLL
-        self.FCLK1_FREQ = Clock('FCLK1', 50, 0.1, 250, disable=1, has_div1=1)
-        self.FCLK2_FREQ = Clock('FCLK2', 50, 0.1, 250, disable=1, has_div1=1)
-        self.FCLK3_FREQ = Clock('FCLK3', 50, 0.1, 250, disable=1, has_div1=1)
+        self.FCLK0_FREQ = Clock('FPGA0', 50, 0.1, 250, disable=1, has_div1=1) # FCLK and peripheral default from IO PLL
+        self.FCLK1_FREQ = Clock('FPGA1', 50, 0.1, 250, disable=1, has_div1=1)
+        self.FCLK2_FREQ = Clock('FPGA2', 50, 0.1, 250, disable=1, has_div1=1)
+        self.FCLK3_FREQ = Clock('FPGA3', 50, 0.1, 250, disable=1, has_div1=1)
         # Note: some devices, like uart0/uart1, shares one Clock
         self.QSPI_FREQ = Clock('QSPI', 200, 10, 200, disable=1)
         self.SMC_FREQ = Clock('SMC', 100, 10, 100, disable=1) # static memory controller
@@ -604,6 +605,7 @@ class Zynq7000:
             iname = os.path.join(template_path, name)
             oname = os.path.join(path, name)
             with open(iname, 'r') as fi, open(oname, 'w') as fo:
+                # Emit register writes
                 di = fi.read()
                 di = di.replace('PS7_PLL_INIT_DATA_TBD', self.pll.emit(fmt='TCL' if name.lower().endswith('.tcl') else 'C'))
                 di = di.replace('PS7_CLOCK_INIT_DATA_TBD', self.clock.emit(fmt='TCL' if name.lower().endswith('.tcl') else 'C'))
@@ -611,6 +613,50 @@ class Zynq7000:
                 di = di.replace('PS7_PERIPHERALS_INIT_DATA_TBD', self.peripherals.emit(fmt='TCL' if name.lower().endswith('.tcl') else 'C'))
                 di = di.replace('PS7_DDR_INIT_DATA_TBD', self.ddr.emit(fmt='TCL' if name.lower().endswith('.tcl') else 'C'))
                 di = di.replace('PS7_POST_CONFIG_TBD', self.post_config.emit(fmt='TCL' if name.lower().endswith('.tcl') else 'C'))
+                
+                # Update macros in .h, most are unused, actually
+                periph_list = [self.FCLK0_FREQ, self.FCLK1_FREQ, self.FCLK2_FREQ, self.FCLK3_FREQ, 
+                               self.QSPI_FREQ, self.SMC_FREQ, self.ENET0_FREQ, self.ENET1_FREQ, 
+                               self.SDIO_FREQ, self.SPI_FREQ, self.UART_FREQ, self.CAN_FREQ,
+                               self.PCAP_FREQ, self.APU_FREQ, self.DDR_FREQ, self.DCI_FREQ]
+                for PERIPH in periph_list:
+                    pn = PERIPH.name
+                    pf = PERIPH.actual
+                    di = di.replace(pn+'_FREQ_TBD', str(round(pf * 1e6)))
+                unsupported_list = ['USB0', 'USB1', 'I2C', 'WDT', 'TTC', 'TPIU']
+                for u in unsupported_list:
+                    di = di.replace(u+'_FREQ_TBD', '10000000')
+
+                # Peripheral address BASEADDR/HIGHADDR in xparameters.h
+                # We target to correctly compile embeddedsw FSBL and HelloWorld, 
+                #  these designes use at most 1 peripheral per type.
+                #  More advanced usages are left to users to handle. 
+                # QSPI, unsupported for now
+                di = di.replace('QSPI_NUM_TBD', '0')
+                di = di.replace('QSPI_FREQ_TBD', str(self.QSPI_FREQ.actual))
+                # SDIO
+                if self.check_param_enabled('sd'):
+                    di = di.replace('SDIO_NUM_TBD', '1')
+                    di = di.replace('SDIO_FREQ_TBD', str(self.SDIO_FREQ.actual))
+                    if self.check_param_enabled('sd0'):
+                        di = di.replace('SDIO_BASEADDR_TBD', hex(sdio.baseaddrs[0]))
+                        di = di.replace('SDIO_HIGHADDR_TBD', hex(sdio.baseaddrs[0] + uart.highaddr))
+                    elif self.check_param_enabled('sd1'):
+                        di = di.replace('SDIO_BASEADDR_TBD', hex(sdio.baseaddrs[1]))
+                        di = di.replace('SDIO_HIGHADDR_TBD', hex(sdio.baseaddrs[1] + uart.highaddr))
+                # UART
+                if self.check_param_enabled('uart'):
+                    di = di.replace('UART_NUM_TBD', '1')
+                    di = di.replace('UART_FREQ_TBD', str(self.UART_FREQ.actual))
+                    if self.check_param_enabled('uart0'):
+                        di = di.replace('UART_BASEADDR_TBD', hex(uart.baseaddrs[0]))
+                        di = di.replace('UART_HIGHADDR_TBD', hex(uart.baseaddrs[0] + uart.highaddr))
+                    elif self.check_param_enabled('uart1'):
+                        di = di.replace('UART_BASEADDR_TBD', hex(uart.baseaddrs[1]))
+                        di = di.replace('UART_HIGHADDR_TBD', hex(uart.baseaddrs[1] + uart.highaddr))
+
+
+                di = di.replace(u+'_FREQ_TBD', '10000000')
                 fo.write(di)
 
 if __name__ == '__main__':
