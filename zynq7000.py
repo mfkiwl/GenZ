@@ -52,11 +52,11 @@ def get_pll_cp_res_cnt(fdiv):
 # Peripheral configuration and MIO configuration is kind separated
 # Peripherals can be without MIO pins -- will be accessible only to EMIO then
 # EMIO GPIO and peripherals are seen as always enabled
-# mios_defaults = {'TRI_ENABLE': enable,
+# mios_defaults = {'TRI_ENABLE': disable,
                  # 'Speed': slow,
                  # 'IO_Type': lvcmos33,
                  # 'PULLUP': enable,
-                 # 'DisableRcvr': enable}
+                 # 'DisableRcvr': disable}
 # Boot Mode MIO pins, pullup is not available. 
 mios_nopullup = [2, 3, 4, 5, 6, 7, 8]
 # Eyecandies...
@@ -120,12 +120,12 @@ z7000_ps_param_demo = {
 	'MIO_PIN_13': [	_*'qspi1 io3',	_*'trace ctrl',		x,					_*'nand data3',		_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'pjtag tms',	_*'sd1 data1',	_*'spi1 ss0',	x,				_*'uart1 rxd'],
 	'MIO_PIN_14': [	x,				_*'trace data0',	x,					_*'nand busy',		_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'swdt clk',	_*'sd1 data2',	_*'spi1 ss1',	x,				_*'uart0 rxd'],
 	'MIO_PIN_15': [	x,				_*'trace data1',	_*'sram/nor addr0',	x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				_*'uart0 txd'],
-	'MIO_PIN_16': [	_*'gem0 tx_clk',_*'trace data4',	_*'sram/nor addr1',	_*'nand data8',		_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				1*'sd0 sck',	_*'spi0 sck',	0*'ttc1 wave',	_*'uart1 txd'],
-	'MIO_PIN_17': [	_*'gem0 txd0',	_*'trace data5',	_*'sram/nor addr2',	_*'nand data9',		_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				1*'sd0 cmd',	_*'spi0 miso',	0*'ttc1 clk',	_*'uart1 rxd'],
-	'MIO_PIN_18': [	_*'gem0 txd1',	_*'trace data6',	_*'sram/nor addr3',	_*'nand data10',	_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				1*'sd0 data0',	_*'spi0 ss0',	0*'ttc0 wave',	_*'uart0 rxd'],
-	'MIO_PIN_19': [	_*'gem0 txd2',	_*'trace data7',	_*'sram/nor addr4',	_*'nand data11',	_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				1*'sd0 data1',	_*'spi0 ss1',	0*'ttc0 clk',	_*'uart0 txd'],
-	'MIO_PIN_20': [	_*'gem0 txd3',	x,					_*'sram/nor addr5',	_*'nand data12',	_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				1*'sd0 data2',	_*'spi0 ss2',	x,				_*'uart1 txd'],
-	'MIO_PIN_21': [	_*'gem0 tx_ctl',x,					_*'sram/nor addr6',	_*'nand data13',	_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				1*'sd0 data3',	_*'spi0 mosi',	x,				_*'uart1 rxd'],
+	'MIO_PIN_16': [	_*'gem0 tx_clk',_*'trace data4',	_*'sram/nor addr1',	_*'nand data8',		_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	0*'ttc1 wave',	_*'uart1 txd'],
+	'MIO_PIN_17': [	_*'gem0 txd0',	_*'trace data5',	_*'sram/nor addr2',	_*'nand data9',		_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 cmd',	_*'spi0 miso',	0*'ttc1 clk',	_*'uart1 rxd'],
+	'MIO_PIN_18': [	_*'gem0 txd1',	_*'trace data6',	_*'sram/nor addr3',	_*'nand data10',	_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	0*'ttc0 wave',	_*'uart0 rxd'],
+	'MIO_PIN_19': [	_*'gem0 txd2',	_*'trace data7',	_*'sram/nor addr4',	_*'nand data11',	_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				_*'sd0 data1',	_*'spi0 ss1',	0*'ttc0 clk',	_*'uart0 txd'],
+	'MIO_PIN_20': [	_*'gem0 txd3',	x,					_*'sram/nor addr5',	_*'nand data12',	_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 data2',	_*'spi0 ss2',	x,				_*'uart1 txd'],
+	'MIO_PIN_21': [	_*'gem0 tx_ctl',x,					_*'sram/nor addr6',	_*'nand data13',	_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 data3',	_*'spi0 mosi',	x,				_*'uart1 rxd'],
 	'MIO_PIN_22': [	_*'gem0 rx_clk',_*'trace data2',	_*'sram/nor addr7',	_*'nand data14',	_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'pjtag tdi',	_*'sd1 data0',	_*'spi1 mosi',	x,				_*'uart0 rxd'],
 	'MIO_PIN_23': [	_*'gem0 rxd0',	_*'trace data3',	_*'sram/nor addr8',	_*'nand data15',	_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'pjtag tdo',	_*'sd1 cmd',	_*'spi1 miso',	x,				_*'uart0 txd'],
 	'MIO_PIN_24': [	_*'gem0 rxd1',	_*'trace clk',		_*'sram/nor addr9',	x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		_*'pjtag tck',	_*'sd1 sck',	_*'spi1 sck',	x,				_*'uart1 txd'],
@@ -144,12 +144,12 @@ z7000_ps_param_demo = {
 	'MIO_PIN_37': [	_*'gem1 rxd2',	_*'usb0 data5',		_*'sram/nor addr22',x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'pjtag tms',	_*'sd1 data1',	_*'spi1 ss0',	x,				_*'uart1 rxd'],
 	'MIO_PIN_38': [	_*'gem1 rxd3',	_*'usb0 data6',		_*'sram/nor addr23',x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'swdt clk',	_*'sd1 data2',	_*'spi1 ss1',	x,				_*'uart0 rxd'],
 	'MIO_PIN_39': [	_*'gem1 rx_ctl',_*'usb0 data7',		_*'sram/nor addr24',x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				_*'uart0 txd'],
-	'MIO_PIN_40': [	x,				_*'usb1 data4',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	_*'ttc1 wave',	_*'uart1 txd'],
-	'MIO_PIN_41': [	x,				_*'usb1 dir',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 miso',	_*'spi0 miso',	_*'ttc1 clk',	_*'uart1 rxd'],
-	'MIO_PIN_42': [	x,				_*'usb1 stp',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	_*'ttc0 wave',	_*'uart0 rxd'],
-	'MIO_PIN_43': [	x,				_*'usb1 nxt',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				_*'sd0 data1',	_*'spi0 ss1',	_*'ttc0 clk',	_*'uart0 txd'],
-	'MIO_PIN_44': [	x,				_*'usb1 data0',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 data2',	_*'spi0 ss2',	x,				_*'uart1 txd'],
-	'MIO_PIN_45': [	x,				_*'usb1 data1',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 data3',	_*'spi0 mosi',	x,				_*'uart1 rxd'],
+	'MIO_PIN_40': [	x,				_*'usb1 data4',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				1*'sd0 sck',	_*'spi0 sck',	_*'ttc1 wave',	_*'uart1 txd'],
+	'MIO_PIN_41': [	x,				_*'usb1 dir',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				1*'sd0 miso',	_*'spi0 miso',	_*'ttc1 clk',	_*'uart1 rxd'],
+	'MIO_PIN_42': [	x,				_*'usb1 stp',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				1*'sd0 data0',	_*'spi0 ss0',	_*'ttc0 wave',	_*'uart0 rxd'],
+	'MIO_PIN_43': [	x,				_*'usb1 nxt',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		x,				1*'sd0 data1',	_*'spi0 ss1',	_*'ttc0 clk',	_*'uart0 txd'],
+	'MIO_PIN_44': [	x,				_*'usb1 data0',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				1*'sd0 data2',	_*'spi0 ss2',	x,				_*'uart1 txd'],
+	'MIO_PIN_45': [	x,				_*'usb1 data1',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				1*'sd0 data3',	_*'spi0 mosi',	x,				_*'uart1 rxd'],
 	'MIO_PIN_46': [	x,				_*'usb1 data2',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'pjtag tdi',	_*'sd1 data0',	_*'spi1 mosi',	x,				_*'uart0 rxd'],
 	'MIO_PIN_47': [	x,				_*'usb1 data3',		x,					x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'pjtag tdo',	_*'sd1 cmd',	_*'spi1 miso',	x,				_*'uart0 txd'],
 	'MIO_PIN_48': [	x,				_*'usb1 clk',		x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		_*'pjtag tck',	_*'sd1 sck',	_*'spi1 sck',	x,				_*'uart1 txd'],
@@ -566,33 +566,38 @@ class Zynq7000:
             mio.add(zar, 'slcr', mio_pin, 'L2_SEL', l2_sel)
             mio.add(zar, 'slcr', mio_pin, 'L3_SEL', l3_sel)
             # MIO default pin properties
-            mio.add(zar, 'slcr', mio_pin, 'TRI_ENABLE', enable)
+            mio.add(zar, 'slcr', mio_pin, 'TRI_ENABLE', disable)
             mio.add(zar, 'slcr', mio_pin, 'Speed', slow)
             mio.add(zar, 'slcr', mio_pin, 'IO_Type', lvcmos33)
             mio.add(zar, 'slcr', mio_pin, 'PULLUP', disable if i in mios_nopullup else enable)
-            mio.add(zar, 'slcr', mio_pin, 'DisableRcvr', enable)
+            mio.add(zar, 'slcr', mio_pin, 'DisableRcvr', disable)
 
         # SD
         # no special reg conf needed, just select (or not select) WP and CD pins
         for i in ['0', '1']:
             if self.check_param_enabled('sd'+i):
                 mio.add(zar, 'slcr', 'sd'+i+'_wp_cd_sel', 'sdio'+i+'_wp_sel', 55) # EMIO by default
-                mio.add(zar, 'slcr', 'sd'+i+'_wp_cd_sel', 'sdio'+i+'_cd_sel', 55) # EMIO by default
+                mio.add(zar, 'slcr', 'sd'+i+'_wp_cd_sel', 'sdio'+i+'_cd_sel', 56) # EMIO by default
 
         # UART
         for i in ['0', '1']:
             if self.check_param_enabled('uart'+i):
+                peripherals.add(zar, 'uart'+i, 'baud_rate_divider_reg0', 'bdiv', self.uart0_bdiv if i=='0' else self.uart1_bdiv)
+                peripherals.add(zar, 'uart'+i, 'xuartps_baudgen_offset', 'cd', self.uart0_cd if i=='0' else self.uart1_cd)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'txen', 1)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'rxen', 1)
-                peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'txres', 1) # self-clearing reset
-                peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'rxres', 1)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'txdis', 0)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'rxdis', 0)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'stpbrk', 0)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'sttbrk', 0)
                 peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'rstto', 0) # torst, receiver timeout counter, self-clearing
-                peripherals.add(zar, 'uart'+i, 'baud_rate_divider_reg0', 'bdiv', self.uart0_bdiv if i=='0' else self.uart1_bdiv)
-                peripherals.add(zar, 'uart'+i, 'xuartps_baudgen_offset', 'cd', self.uart0_cd if i=='0' else self.uart1_cd)
+                peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'txres', 1) # self-clearing reset
+                peripherals.add(zar, 'uart'+i, 'xuartps_cr_offset', 'rxres', 1)
+                peripherals.add(zar, 'uart'+i, 'xuartps_mr_offset', 'chmode', 0) # normal, 01: auto echo, 10: local lpbk, 11: remote lpbk
+                peripherals.add(zar, 'uart'+i, 'xuartps_mr_offset', 'nbstop', 0) # 1 stop bit
+                peripherals.add(zar, 'uart'+i, 'xuartps_mr_offset', 'par', 0b100) # no parity, this resets to 0 (even parity)!!
+                peripherals.add(zar, 'uart'+i, 'xuartps_mr_offset', 'chrl', 0) # 8 bits char
+                peripherals.add(zar, 'uart'+i, 'xuartps_mr_offset', 'clks', 0) # 0: uart_ref_clk, 1: uart_ref_clk/8
         # QSPI
         peripherals.add(zar, 'qspi', 'xqspips_cr_offset', 'holdb_dr', 1) # Holdb/WPn drive, set in all cases
         # devcfg

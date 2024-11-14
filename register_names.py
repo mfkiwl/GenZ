@@ -161,36 +161,34 @@ class PS7_InitData:
     def emit(self, fmt='C', comment=True):
         e = ''
         i = 0
-        if fmt.lower() == 'c':
-            for addr, mask, data, poll in self.emit_list:
+        for addr, mask, data, poll in self.emit_list:
+            # shift data to mask position
+            zeros = 0
+            mask0 = mask
+            while mask0 & 1 == 0:
+                zeros += 1
+                mask0 >>= 1
+            if fmt.lower() == 'c':
                 if comment:
                     basereg, entry, field, data = self.comment_list[i]
                     e += '// ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '\n'
-                # shift data to mask position
-                zeros = 0
-                mask0 = mask
-                while mask0 & 1 == 0:
-                    zeros += 1
-                    mask0 >>= 1
                 if poll:
                     e += ('EMIT_MASKPOLL(0X%08X, 0x%08XU),\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
                     e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data << zeros))
                 else:
                     e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data << zeros))
-                i += 1
-        elif fmt.lower() == 'tcl':
-            for addr, mask, data, poll in self.emit_list:
+            elif fmt.lower() == 'tcl':
                 if comment:
                     basereg, entry, field, data = self.comment_list[i]
-                    e += '# ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '\n'
+                    e += 'puts "' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '"\n'
                 if poll:
-                    e += ('mask_poll 0X%08X, 0x%08X\n' % (addr, mask))
+                    e += ('mask_poll 0X%08X 0x%08X\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
-                    e += ('mwr -force 0X%08X, 0x%08X\n' % (addr, data))
+                    e += ('mwr -force 0X%08X 0x%08X\n' % (addr, data << zeros))
                 else:
-                    e += ('mask_write 0X%08X, 0x%08X 0x%08X\n' % (addr, mask, data))
-                i += 1
+                    e += ('mask_write 0X%08X 0x%08X 0x%08X\n' % (addr, mask, data << zeros))
+            i += 1
         return e
 
 # From UG585, ZYNQ 7000 TRM, Page 1632
