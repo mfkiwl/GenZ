@@ -62,6 +62,28 @@ mios_nopullup = [2, 3, 4, 5, 6, 7, 8]
 # Eyecandies...
 _=0
 x=''
+# some user-friendly macros
+unlock_key = 0xdf0d
+lock_key = 0x767b
+enable = 1
+disable = 0
+assert_ = 1
+deassert = 0
+# PLL selection for APU
+ARM_ARM_PLL = 0b00
+ARM_DDR_PLL = 0b10
+ARM_IO_PLL = 0b11
+# PLL selection for IO
+IO_IO_PLL = 0b00
+IO_ARM_PLL = 0b10
+IO_DDR_PLL = 0b11
+# MIO IO type
+lvcmos18 = 0b001
+lvcmos25 = 0b010
+lvcmos33 = 0b011
+hstl = 0b100
+slow = 0
+fast = 1
 
 # Return L0_SEL, L1_SEL, L2_SEL, L3_SEL
 def z7000_ps_param_L_sel(arr):
@@ -601,7 +623,7 @@ class Zynq7000:
         if not os.path.exists(path):
             os.makedirs(path)
         template_path = './ps7_init_template/'
-        for name in ['ps7_init_gpl.c', 'ps7_init_gpl.h', 'ps7_init.tcl', 'xparameters.h']:
+        for name in ['ps7_init.c', 'ps7_init.h', 'ps7_init.tcl', 'xparameters.h']:
             iname = os.path.join(template_path, name)
             oname = os.path.join(path, name)
             with open(iname, 'r') as fi, open(oname, 'w') as fo:

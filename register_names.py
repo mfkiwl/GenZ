@@ -535,38 +535,12 @@ qspi = BaseRegister([0xe000d000], [
 	Entry("MOD_ID", 0x000000FC, 32, "rw", 0x01090101, "Module Identification register")], name='qspi')
 sdio = BaseRegister([0xe0100000, 0xe0101000], [], name='sdio')
 
-zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart, qspi])
-pll = PS7_InitData('pll')
-clock = PS7_InitData('clock')
-mio = PS7_InitData('mio')
-peripherals = PS7_InitData('peripherals')
-ddr = PS7_InitData('ddr')
-
-# some user-friendly macros
-unlock_key = 0xdf0d
-lock_key = 0x767b
-enable = 1
-disable = 0
-assert_ = 1
-deassert = 0
-# PLL selection for APU
-ARM_ARM_PLL = 0b00
-ARM_DDR_PLL = 0b10
-ARM_IO_PLL = 0b11
-# PLL selection for IO
-IO_IO_PLL = 0b00
-IO_ARM_PLL = 0b10
-IO_DDR_PLL = 0b11
-# MIO IO type
-lvcmos18 = 0b001
-lvcmos25 = 0b010
-lvcmos33 = 0b011
-hstl = 0b100
-slow = 0
-fast = 1
-x = ''
-_ = 0
-
+zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart, qspi, sdio])
+# pll = PS7_InitData('pll')
+# clock = PS7_InitData('clock')
+# mio = PS7_InitData('mio')
+# peripherals = PS7_InitData('peripherals')
+# ddr = PS7_InitData('ddr')
 
 def parse_ps7_init_entries_fields(ps7_init):
     with open(ps7_init, "r") as ps7_init_f:
@@ -611,6 +585,6 @@ def parse_ps7_init_entries_fields(ps7_init):
 if __name__ == "__main__":
     parse_ps7_init_entries_fields("./hdf/noddr-0-uart/ps7_init_gpl.c")
     zynq7_allregisters.show()
-    pll.add(zynq7_allregisters, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
-    pll.add(zynq7_allregisters, 'slcr', 'slcr_lock', 'lock_key', 0x767b)
-    print(pll.emit())
+    # pll.add(zynq7_allregisters, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
+    # pll.add(zynq7_allregisters, 'slcr', 'slcr_lock', 'lock_key', 0x767b)
+    # print(pll.emit())
