@@ -136,11 +136,18 @@ class Zynq7_AllRegisters:
         for br in self.baseregisters:
             br.show()
 
+def zeros(m):
+    zeros = 0
+    mask0 = m
+    while mask0 & 1 == 0:
+        zeros += 1
+        mask0 >>= 1
+    return zeros
+    
 class PS7_InitData:
     def __init__(self, name=''):
         self.name = name
         self.emit_list = []
-        self.comment_list = []
     
     # 3 kinds of emit: write(a, d), maskwrite(a, m, d), maskpoll(a, m)
     # other kinds exist, but are not used
@@ -149,45 +156,65 @@ class PS7_InitData:
         if addr == None or (mask == None and not fullreg):
             print('Error finding basereg/entry/field from Zynq7_AllRegisters!')
             return False
-        self.emit_list.append((addr, mask if not fullreg else 0xFFFFFFFF, data, poll))
-        self.comment_list.append((basereg, entry, field if not fullreg else 'fullreg', data))
+        comment = (basereg, entry, field if not fullreg else 'fullreg', data)
+        self.emit_list.append((addr, mask if not fullreg else 0xFFFFFFFF, data, poll, [comment]))
         return True
-    
+
     # Merge write to the same entry, different field, by ORing all the data/mask
     # Do not change orders. 
     def merge(self):
-        pass
+        # shift from e.g. 0xff000000, 0xab to 0xff000000, 0xab000000
+        i=0
+        for addr, mask, data, poll, comment in self.emit_list:
+            self.emit_list[i] = (addr, mask, data << zeros(mask), poll, comment)
+            i+=1
+        # merge entries with same address, this is necessary for 
+        # at least the UART e0000000 config register
+        emit_list_merged = [self.emit_list[0]]
+        for addr, mask, data, poll, comment in self.emit_list[1:]:
+            addr0, mask0, data0, poll0, comments = emit_list_merged[-1]
+            if addr == addr0 and poll == poll0:
+                mask0 |= mask
+                data0 |= data
+                comments += comment
+                emit_list_merged[-1] = (addr0, mask0, data0, poll0, comments)
+            else:
+                emit_list_merged.append((addr, mask, data, poll, comment))
+        self.emit_list = emit_list_merged
+        # for addr, mask, data, poll, comment in self.emit_list:
+            # print('0x%08x, 0x%08x, %08x' % ( addr, mask, data ))
+        # shift back to keep consistent with non-merged case
+        i=0
+        for addr, mask, data, poll, comment in self.emit_list:
+            self.emit_list[i] = (addr, mask, data >> zeros(mask), poll, comment)
+            i+=1
+
 
     def emit(self, fmt='C', comment=True):
         e = ''
         i = 0
-        for addr, mask, data, poll in self.emit_list:
+        for addr, mask, data, poll, comments in self.emit_list:
             # shift data to mask position
-            zeros = 0
-            mask0 = mask
-            while mask0 & 1 == 0:
-                zeros += 1
-                mask0 >>= 1
             if fmt.lower() == 'c':
                 if comment:
-                    basereg, entry, field, data = self.comment_list[i]
-                    e += '// ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '\n'
+                    for basereg, entry, field, cmtdata in comments:
+                        e += '// ' + basereg + ' ' + entry + ' ' + field + ': ' + hex(cmtdata) + '\n'
                 if poll:
                     e += ('EMIT_MASKPOLL(0X%08X, 0x%08XU),\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
-                    e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data << zeros))
+                    e += ('EMIT_WRITE(0X%08X, 0x%08XU),\n' % (addr, data << zeros(mask)))
                 else:
-                    e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data << zeros))
+                    e += ('EMIT_MASKWRITE(0X%08X, 0x%08XU, 0x%08XU),\n' % (addr, mask, data << zeros(mask)))
             elif fmt.lower() == 'tcl':
                 if comment:
-                    basereg, entry, field, data = self.comment_list[i]
-                    e += 'puts "' + basereg + ' ' + entry + ' ' + field + ': ' + hex(data) + '"\n'
+                    for basereg, entry, field, cmtdata in comments:
+                        e += 'puts "' + basereg + ' ' + entry + ' ' + field + ': ' + hex(cmtdata) + '"\n'
                 if poll:
                     e += ('mask_poll 0X%08X 0x%08X\n' % (addr, mask))
                 elif mask == 0xFFFFFFFF:
-                    e += ('mwr -force 0X%08X 0x%08X\n' % (addr, data << zeros))
+                    e += ('mwr -force 0X%08X 0x%08X\n' % (addr, data << zeros(mask)))
                 else:
-                    e += ('mask_write 0X%08X 0x%08X 0x%08X\n' % (addr, mask, data << zeros))
+                    e += ('mask_write 0X%08X 0x%08X 0x%08X\n' % (addr, mask, data << zeros(mask)))
             i += 1
         return e
 

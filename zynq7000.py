@@ -610,6 +610,9 @@ class Zynq7000:
         post_config.add(zar, 'slcr', 'fpga_rst_ctrl', '', 0x0, fullreg=1)
         post_config.add(zar, 'slcr', 'slcr_lock', 'lock_key', lock_key)
 
+        mio.merge()
+        peripherals.merge()
+
         self.pll = pll
         self.clock = clock
         self.mio = mio
@@ -619,10 +622,10 @@ class Zynq7000:
 
         # print(pll.emit())
         # print(clock.emit())
-        print(mio.emit())
-        print(peripherals.emit(fmt='TCL'))
-        print(ddr.emit())
-        print(post_config.emit())
+        # print(mio.emit())
+        # print(peripherals.emit(fmt='TCL'))
+        # print(ddr.emit())
+        # print(post_config.emit())
 
     def ps7_init_filewrite(self, path):
         if not os.path.exists(path):
