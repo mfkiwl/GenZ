@@ -25,30 +25,36 @@
 *
 *****************************************************************************/
 
-#include "ps7_init_gpl.h"
+#include "ps7_init.h"
 
 unsigned long ps7_pll_init_data_3_0[] = {
 PS7_PLL_INIT_DATA_TBD
+EMIT_EXIT(),
 };
 
 unsigned long ps7_clock_init_data_3_0[] = {
 PS7_CLOCK_INIT_DATA_TBD
+EMIT_EXIT(),
 };
 
 unsigned long ps7_ddr_init_data_3_0[] = {
 PS7_DDR_INIT_DATA_TBD
+EMIT_EXIT(),
 };
 
 unsigned long ps7_mio_init_data_3_0[] = {
 PS7_MIO_INIT_DATA_TBD
+EMIT_EXIT(),
 };
 
 unsigned long ps7_peripherals_init_data_3_0[] = {
 PS7_PERIPHERALS_INIT_DATA_TBD
+EMIT_EXIT(),
 };
 
 unsigned long ps7_post_config_3_0[] = {
 PS7_POST_CONFIG_TBD
+EMIT_EXIT(),
 };
 
 unsigned long ps7_debug_3_0[] = {
@@ -84,30 +90,30 @@ ps7GetSiliconVersion () {
 }
 
 void mask_write (unsigned long add , unsigned long  mask, unsigned long val ) {
-        volatile unsigned long *addr = (volatile unsigned long*) add;
-        *addr = ( val & mask ) | ( *addr & ~mask);
-        //xil_printf("MaskWrite : 0x%x--> 0x%x \n \r" ,add, *addr);
+	volatile unsigned long *addr = (volatile unsigned long*) add;
+	*addr = ( val & mask ) | ( *addr & ~mask);
+	xil_printf("MaskWrite : 0x%x--> 0x%x \n \r" ,add, *addr);
 }
 
 
 int mask_poll(unsigned long add , unsigned long mask ) {
-        volatile unsigned long *addr = (volatile unsigned long*) add;
-        int i = 0;
-        while (!(*addr & mask)) {
-          if (i == PS7_MASK_POLL_TIME) {
-            return -1;
-          }
-          i++;
-        }
-     return 1;
-        //xil_printf("MaskPoll : 0x%x --> 0x%x \n \r" , add, *addr);
+	volatile unsigned long *addr = (volatile unsigned long*) add;
+	int i = 0;
+	while (!(*addr & mask)) {
+	  if (i == PS7_MASK_POLL_TIME) {
+		return -1;
+	  }
+	  i++;
+	}
+	xil_printf("MaskPoll : 0x%x --> 0x%x \n \r" , add, *addr);
+    return 1;
 }
 
 unsigned long mask_read(unsigned long add , unsigned long mask ) {
-        volatile unsigned long *addr = (volatile unsigned long*) add;
-        unsigned long val = (*addr & mask);
-        //xil_printf("MaskRead : 0x%x --> 0x%x \n \r" , add, val);
-        return val;
+	volatile unsigned long *addr = (volatile unsigned long*) add;
+	unsigned long val = (*addr & mask);
+	xil_printf("MaskRead : 0x%x --> 0x%x \n \r" , add, val);
+	return val;
 }
 
 

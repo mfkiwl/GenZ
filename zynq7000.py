@@ -688,7 +688,7 @@ class Zynq7000:
 
 if __name__ == '__main__':
     for sample in ['noddr-0-uart', 'noddr-0-sd', 'noddr-0-uart-elsegpio']:
-        parse_ps7_init_entries_fields("./hdf/" + sample + "/ps7_init_gpl.c")
+        parse_ps7_init_entries_fields("./tcl_fuzz/hdf/" + sample + "/ps7_init_gpl.c")
     zynq7_allregisters.show()
     z7 = Zynq7000()
     z7.param_load(z7000_ps_param_demo)
