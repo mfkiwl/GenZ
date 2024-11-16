@@ -1,0 +1,7 @@
+1: all default
+2: full with many parameters
+3: same as 2, but fewer axi --> S_AXI_HP0_FIFO_CTRL, DMA0_REQ, S_AXI_ACP, S_AXI_GP0, S_AXI_HP0, DMA0_ACK, M_AXI_GP0 NOT related to regmap
+4: same as 2, but fewer PL clocks --> FCLK_CLK0-4: 0xF8000170/180/190/1A0, 0x03F03F30U, ~~0x00400500U~~ (divisors, srcsel)
+5: same as 2, but changed DDR DQS to clk delay
+bankvolt: bank voltage information not *that* visible
+f800012c: clock enable, can just enable all?

@@ -4,7 +4,17 @@ import sys
 import copy
 
 # BaseRegister -> Entry -> Field
+# Example: 
+#  BaseRegister SLCR 0xf8000000
+#  Entry SLCR_LOCK, 0xf8000000 + 0x00000004
+#  Field LOCK_KEY, mask 0x0000ffff
+# Entries are found in UG585, Fields are parsed from ps7_init.c generated from Vivado
+
+# Also provides a way to manage (add, merge) an array of register writes in the PS7_InitData class
+
 # No data is stored here: only skeleton registers/masks
+
+# Provides a zynq7_allregisters global variable
 
 class Entry:
     def __init__(self, name, addr, width, tp, reset, description):
@@ -560,7 +570,9 @@ qspi = BaseRegister([0xe000d000], [
 	Entry("MOD_ID", 0x000000FC, 32, "rw", 0x01090101, "Module Identification register")], name='qspi')
 sdio = BaseRegister([0xe0100000, 0xe0101000], [], name='sdio')
 
+# TODO: make the BaseRegister array findable by name
 zynq7_allregisters = Zynq7_AllRegisters([slcr, devcfg, uart, qspi, sdio])
+
 # pll = PS7_InitData('pll')
 # clock = PS7_InitData('clock')
 # mio = PS7_InitData('mio')
@@ -608,8 +620,9 @@ def parse_ps7_init_entries_fields(ps7_init):
 
 
 if __name__ == "__main__":
-    parse_ps7_init_entries_fields("./hdf/noddr-0-uart/ps7_init_gpl.c")
+    parse_ps7_init_entries_fields("./tcl_fuzz/hdf/noddr-0-uart/ps7_init_gpl.c")
     zynq7_allregisters.show()
+
     # pll.add(zynq7_allregisters, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
     # pll.add(zynq7_allregisters, 'slcr', 'slcr_lock', 'lock_key', 0x767b)
     # print(pll.emit())
