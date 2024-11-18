@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from zynq7000 import *
 
+# Set tab to 4 spaces to view correctly!
 _=0
 z7000_ps_param_muzy4 = {
     #				L0				L1					L2_01				L2_10				L2_11			L3_000		L3_001			L3_010				L3_011			L3_100			L3_101			L3_110			L3_111
@@ -81,12 +82,12 @@ z7000_ps_param_pynqz1 = {
 	'MIO_PIN_07': [	x,				_*'trace data13',	_*'sram/nor oe_b',	_*'nand cle_b',		_*'sd1 power',	_*'gpio',	x,				x,					x,				x,				x,				x,				x],
 	'MIO_PIN_08': [	_*'qspi fbclk',	_*'trace data14',	x,					_*'nand rd_b',		_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'sram/nor bls_b',	x,				x,				x,				x,				_*'uart1 txd'],
 	'MIO_PIN_09': [	_*'qspi1 sclk',	_*'trace data15',	_*'sram/nor data6',	_*'nand data4',		_*'sd1 power',	_*'gpio',	_*'can1 rx',	x,					x,				x,				x,				x,				_*'uart1 rxd'],
-	'MIO_PIN_10': [	_*'qspi1 io0',	_*'trace data2',	_*'sram/nor data7',	_*'nand data5',		_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'pjtag tdi',	_*'sd1 data0',	_*'spi1 mosi',	x,				1*'uart0 rxd'],
-	'MIO_PIN_11': [	_*'qspi1 io1',	_*'trace data3',	_*'sram/nor data4',	_*'nand data6',		_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'pjtag tdo',	_*'sd1 cmd',	_*'spi1 miso',	x,				1*'uart0 txd'],
+	'MIO_PIN_10': [	_*'qspi1 io0',	_*'trace data2',	_*'sram/nor data7',	_*'nand data5',		_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'pjtag tdi',	_*'sd1 data0',	_*'spi1 mosi',	x,				_*'uart0 rxd'],
+	'MIO_PIN_11': [	_*'qspi1 io1',	_*'trace data3',	_*'sram/nor data4',	_*'nand data6',		_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'pjtag tdo',	_*'sd1 cmd',	_*'spi1 miso',	x,				_*'uart0 txd'],
 	'MIO_PIN_12': [	_*'qspi1 io2',	_*'trace clk',		x,					_*'nand data7',		_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		_*'pjtag tck',	_*'sd1 sck',	_*'spi1 sck',	x,				_*'uart1 txd'],
 	'MIO_PIN_13': [	_*'qspi1 io3',	_*'trace ctrl',		x,					_*'nand data3',		_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'pjtag tms',	_*'sd1 data1',	_*'spi1 ss0',	x,				_*'uart1 rxd'],
-	'MIO_PIN_14': [	x,				_*'trace data0',	x,					_*'nand busy',		_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'swdt clk',	_*'sd1 data2',	_*'spi1 ss1',	x,				_*'uart0 rxd'],
-	'MIO_PIN_15': [	x,				_*'trace data1',	_*'sram/nor addr0',	x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				_*'uart0 txd'],
+	'MIO_PIN_14': [	x,				_*'trace data0',	x,					_*'nand busy',		_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		_*'swdt clk',	_*'sd1 data2',	_*'spi1 ss1',	x,				1*'uart0 rxd'],
+	'MIO_PIN_15': [	x,				_*'trace data1',	_*'sram/nor addr0',	x,					_*'sd1 power',	_*'gpio',	_*'can0 tx',	_*'i2c0 sda',		_*'swdt rst',	_*'sd1 data3',	_*'spi1 ss2',	x,				1*'uart0 txd'],
 	'MIO_PIN_16': [	_*'gem0 tx_clk',_*'trace data4',	_*'sram/nor addr1',	_*'nand data8',		_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		x,				_*'sd0 sck',	_*'spi0 sck',	0*'ttc1 wave',	_*'uart1 txd'],
 	'MIO_PIN_17': [	_*'gem0 txd0',	_*'trace data5',	_*'sram/nor addr2',	_*'nand data9',		_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		x,				_*'sd0 cmd',	_*'spi0 miso',	0*'ttc1 clk',	_*'uart1 rxd'],
 	'MIO_PIN_18': [	_*'gem0 txd1',	_*'trace data6',	_*'sram/nor addr3',	_*'nand data10',	_*'sd0 power',	_*'gpio',	_*'can0 rx',	_*'i2c0 scl',		x,				_*'sd0 data0',	_*'spi0 ss0',	0*'ttc0 wave',	_*'uart0 rxd'],
@@ -128,7 +129,8 @@ z7000_ps_param_pynqz1 = {
     'freq'  : { 'crystal'  : 33.333333333,
                 'fclk0'    : 100,
                 'fclk1'    : 50,
-                'fclk2'    : 25
+                'fclk2'    : 25,
+                'fclk3'    : 12.5,
                }
 	}
 
