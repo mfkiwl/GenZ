@@ -127,12 +127,15 @@ z7000_ps_param_pynqz1 = {
 	'MIO_PIN_52': [	x,				x,					x,					x,					_*'sd0 power',	_*'gpio',	_*'can1 tx',	_*'i2c1 scl',		_*'swdt clk',	_*'mdio0 clk',	_*'mdio1 clk',	x,				_*'uart1 txd'],
 	'MIO_PIN_53': [	x,				x,					x,					x,					_*'sd1 power',	_*'gpio',	_*'can1 rx',	_*'i2c1 sda',		_*'swdt rst',	_*'mdio0 data',	_*'mdio1 data',	x,				_*'uart1 rxd'],
     'freq'  : { 'crystal'  : 33.333333333,
-                'fclk0'    : 100,
+                'fclk0'    : 10,
                 'fclk1'    : 50,
                 'fclk2'    : 25,
                 'fclk3'    : 12.5,
                }
 	}
+
+z7000_ps_param_fclk_on = {'freq' : {'crystal' : 40,
+                                    'fclk0' : 10}}
 
 if __name__ == '__main__':
     # Load register fields from fuzzed TCLs
@@ -155,4 +158,22 @@ if __name__ == '__main__':
     z7.ps7_init_gen(zynq7_allregisters)
     z7.ps7_init_filewrite('./ps7_init_pynqz1/')
 
+    z7 = Zynq7000()
+    z7.param_load(z7000_ps_param_fclk_on)
+    z7.ps7_init_gen(zynq7_allregisters)
+    z7.ps7_init_filewrite('./ps7_init_fclk/')
+
+    # Can freely change internal params
+    z7.param['freq']['fclk0'] = 250
+    # Re-calculate params
+    z7.param_calc() 
+    z7.ps7_init_gen(zynq7_allregisters)
+    z7.ps7_init_filewrite('./ps7_init_fclk_250/')
+
+    # Overclock the fclk
+    z7.param['freq']['fclk0'] = 620
+    # Re-calculate params
+    z7.param_calc() 
+    z7.ps7_init_gen(zynq7_allregisters)
+    z7.ps7_init_filewrite('./ps7_init_fclk_oc/')
 

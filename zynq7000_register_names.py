@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import os
 import sys
 import copy
 
@@ -108,6 +109,7 @@ class BaseRegister:
             
 class Zynq7_AllRegisters:
     def __init__(self, baseregisters):
+        self.inited = False
         self.baseregisters = baseregisters
 
     def insert(self, addr, fieldname, fieldmask):
@@ -147,8 +149,9 @@ class Zynq7_AllRegisters:
             br.show()
 
 def zeros(m):
+    assert m != 0
     zeros = 0
-    mask0 = m
+    mask0 = m # + (1<<32)
     while mask0 & 1 == 0:
         zeros += 1
         mask0 >>= 1
@@ -617,11 +620,18 @@ def parse_ps7_init_entries_fields(ps7_init):
                 # break
         print('Total', entry_total, 'entries,', entry_unresolved, 'unresolved. ')
 
+def genz_zynq7_allregisters_init(show=False):
+    if zynq7_allregisters.inited is False:
+        for sample in ['noddr-0-uart', 'noddr-0-sd', 'noddr-0-uart-elsegpio']:
+            parse_ps7_init_entries_fields(os.path.join(os.path.dirname(os.path.abspath(__file__)), "./tcl_fuzz/hdf/" + sample + "/ps7_init_gpl.c"))
+        if show:
+            zynq7_allregisters.show()
 
+genz_zynq7_allregisters_init()
 
-if __name__ == "__main__":
-    parse_ps7_init_entries_fields("./tcl_fuzz/hdf/noddr-0-uart/ps7_init_gpl.c")
-    zynq7_allregisters.show()
+# if __name__ == "__main__":
+    # parse_ps7_init_entries_fields("./tcl_fuzz/hdf/noddr-0-uart/ps7_init_gpl.c")
+    # zynq7_allregisters.show()
 
     # pll.add(zynq7_allregisters, 'slcr', 'slcr_unlock', 'unlock_key', 0xdf0d)
     # pll.add(zynq7_allregisters, 'slcr', 'slcr_lock', 'lock_key', 0x767b)

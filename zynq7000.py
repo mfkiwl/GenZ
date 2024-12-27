@@ -195,13 +195,13 @@ class Zynq7000:
         print("Zynq7000: Init default")
         # ALL DEFAULT CLOCKS AND RANGES
         self.CRYSTAL_FREQ = Clock('CRYSTAL', 33.333333333, 30, 60)
-        self.APU_FREQ = Clock('APU', 666.666666, 50, 667, oc=1) # default from ARM PLL
+        self.APU_FREQ = Clock('APU', 666.666666, 50, 667, oc=1999) # default from ARM PLL
         self.APU_CLK_RATIO = '6:2:1' # or 4:2:1
         self.DDR_FREQ = Clock('DDR', 533.333333, 200, 534, oc=1) # default from DDR PLL
-        self.FCLK0_FREQ = Clock('FPGA0', 50, 0.1, 250, disable=1, has_div1=1) # FCLK and peripheral default from IO PLL
-        self.FCLK1_FREQ = Clock('FPGA1', 50, 0.1, 250, disable=1, has_div1=1)
-        self.FCLK2_FREQ = Clock('FPGA2', 50, 0.1, 250, disable=1, has_div1=1)
-        self.FCLK3_FREQ = Clock('FPGA3', 50, 0.1, 250, disable=1, has_div1=1)
+        self.FCLK0_FREQ = Clock('FPGA0', 50, 0.1, 250, disable=1, has_div1=1, oc=999) # FCLK and peripheral default from IO PLL
+        self.FCLK1_FREQ = Clock('FPGA1', 50, 0.1, 250, disable=1, has_div1=1, oc=999)
+        self.FCLK2_FREQ = Clock('FPGA2', 50, 0.1, 250, disable=1, has_div1=1, oc=999)
+        self.FCLK3_FREQ = Clock('FPGA3', 50, 0.1, 250, disable=1, has_div1=1, oc=999)
         # Note: some devices, like uart0/uart1, shares one Clock
         self.QSPI_FREQ = Clock('QSPI', 200, 10, 200, disable=1)
         self.SMC_FREQ = Clock('SMC', 100, 10, 100, disable=1) # static memory controller
@@ -211,7 +211,7 @@ class Zynq7000:
         self.SPI_FREQ = Clock('SPI', 170, 0, 200, disable=1, tolerance=100)
         self.UART_FREQ = Clock('UART', 100, 10, 100, disable=1)
         self.CAN_FREQ = Clock('CAN', 100, 0.1, 100, disable=1)
-        self.PCAP_FREQ = Clock('PCAP', 200, 10, 200) # processor configuration access point, for loading bitstream from PS
+        self.PCAP_FREQ = Clock('PCAP', 200, 10, 200, tolerance=10) # processor configuration access point, for loading bitstream from PS
         self.DCI_FREQ = Clock('DCI', 10.1, 0.1, 177, has_div1=1) # digital controlled impedance, for DDR PHY calibration, default from DDR PLL
 
         self.pll_mul_min = 13
@@ -254,6 +254,11 @@ class Zynq7000:
     def param_load(self, param):
         print("Zynq7000: Param load")
         self.param = param
+
+    def param_calc(self):
+        print("Zynq7000: Param calc")
+
+        # TODO: if this part is done in param_load, then user setting parameters seems not working (Python memory copy problem?)
         # Don't allow customizing peripheral clk freq yet
         self.UART_FREQ.disable = not self.check_param_enabled('uart')
         self.QSPI_FREQ.disable = not self.check_param_enabled('qspi')
@@ -275,8 +280,6 @@ class Zynq7000:
             self.FCLK3_FREQ.disable = 0
             self.FCLK3_FREQ.freq = self.param['freq']['fclk3']
 
-    def param_calc(self):
-        print("Zynq7000: Param calc")
         xtal = self.CRYSTAL_FREQ.freq
         print("ZYNQ PS XTAL", xtal, 'MHz')
         # absolute range of divisors/multipliers
@@ -327,7 +330,7 @@ class Zynq7000:
             for CLOCK in [p for p in periph_list if not p.disable]:
                 x, d0, d1, dev = calc_pll_muldiv(xtal, CLOCK.freq,
                                  [m], r_l_h_abs, r_l_h_abs if CLOCK.has_div1 else [1],
-                                 freq_range=(CLOCK.lower, CLOCK.upper),
+                                 freq_range=(CLOCK.lower, CLOCK.oc + CLOCK.upper),
                                  tolerance=CLOCK.tolerance)
                 dev_sum += dev
             if dev_sum < dev_sum_min:
@@ -339,33 +342,36 @@ class Zynq7000:
         for CLOCK in periph_list:
             x, d0, d1, x = calc_pll_muldiv(xtal, CLOCK.freq,
                              [mbest], r_l_h_abs, r_l_h_abs if CLOCK.has_div1 else [1],
-                             freq_range=(CLOCK.lower, CLOCK.upper),
+                             freq_range=(CLOCK.lower, CLOCK.oc + CLOCK.upper),
                              tolerance=CLOCK.tolerance)
             CLOCK.actual = xtal*mbest/(d0*d1)
             CLOCK.div0 = d0
             CLOCK.div1 = d1
             if not CLOCK.disable:
                 print('\t', CLOCK.name, ':', '/', d0, ('/ ' + str(d1)) if CLOCK.has_div1 else '',
-                      '=', CLOCK.actual, 'MHz (requested', CLOCK.freq, 'MHz)')
+                      '=', CLOCK.actual, 'MHz (requested', CLOCK.freq, 'MHz)',
+                      'OVERCLOCKED!' if CLOCK.actual > CLOCK.upper else '')
 
         # UART baud rate calc, just use PLL calc tool
-        # print(self.UART_FREQ.actual)
-        # print(self.UART_FREQ.div0)
-        # print(self.UART_FREQ.div1)
-        try: self.uart0_baud = self.param['uart0']['baud']
-        except KeyError: pass
-        try: self.uart1_baud = self.param['uart1']['baud']
-        except KeyError: pass
-        # print(self.uart0_baud)
-        x, self.uart0_cd, self.uart0_bdiv, dev = calc_pll_muldiv(
-                self.UART_FREQ.actual*1e6, self.uart0_baud,
-                [1], r_l_h(1, 65535), r_l_h(4+1, 255+1), pll_range=(0,9e9))
-        self.uart0_bdiv -= 1
-        x, self.uart1_cd, self.uart1_bdiv, dev = calc_pll_muldiv(
-                self.UART_FREQ.actual*1e6, self.uart1_baud,
-                [1], r_l_h(1, 65535), r_l_h(4+1, 255+1), pll_range=(0,9e9))
-        self.uart1_bdiv -= 1
-        # print(self.uart0_cd, self.uart0_bdiv, dev)
+        if self.check_param_enabled('uart0'):
+            # print(self.UART_FREQ.actual)
+            # print(self.UART_FREQ.div0)
+            # print(self.UART_FREQ.div1)
+            try: self.uart0_baud = self.param['uart0']['baud']
+            except KeyError: pass
+            # print(self.uart0_baud)
+            x, self.uart0_cd, self.uart0_bdiv, dev = calc_pll_muldiv(
+                    self.UART_FREQ.actual*1e6, self.uart0_baud,
+                    [1], r_l_h(1, 65535), r_l_h(4+1, 255+1), pll_range=(0,9e9))
+            self.uart0_bdiv -= 1
+        if self.check_param_enabled('uart1'):
+            try: self.uart1_baud = self.param['uart1']['baud']
+            except KeyError: pass
+            x, self.uart1_cd, self.uart1_bdiv, dev = calc_pll_muldiv(
+                    self.UART_FREQ.actual*1e6, self.uart1_baud,
+                    [1], r_l_h(1, 65535), r_l_h(4+1, 255+1), pll_range=(0,9e9))
+            self.uart1_bdiv -= 1
+            # print(self.uart0_cd, self.uart0_bdiv, dev)
 
 
         self.param_calculated = True
@@ -576,7 +582,7 @@ class Zynq7000:
     def ps7_init_filewrite(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
-        template_path = './ps7_init_template/'
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), './ps7_init_template/')
         for name in ['ps7_init.c', 'ps7_init.h', 'ps7_init.tcl', 'xparameters.h']:
             iname = os.path.join(template_path, name)
             oname = os.path.join(path, name)
