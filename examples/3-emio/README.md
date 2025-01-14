@@ -8,6 +8,7 @@ It's made of 3 parts:
 - A ELF file, compiled by the ordinary GCC toolchain, that periodically assigns LEDs to SWs, is loaded to the ARM cores. 
 
 ```
+$ ./run_caas.sh
 $ export PYTHONPATH=../..
 $ python3 emio.py
 $ arm-none-eabi-gcc -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -Wl,-T -Wl,lscript.ld emio.c -o emio -nostdlib
@@ -17,3 +18,5 @@ $ ../../xsct_tools/run_elf_7030.tcl ps7_init_emio/ps7_init.tcl build/top.bit emi
 ```
 
 After configuring everything, the two switches will control two LEDs (LD0, LD1) with a small time delay. 
+
+Also, all `PS7` ports are shown in `top.v`. 
