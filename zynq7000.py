@@ -197,7 +197,7 @@ class Zynq7000:
         self.CRYSTAL_FREQ = Clock('CRYSTAL', 33.333333333, 30, 60)
         self.APU_FREQ = Clock('APU', 666.666666, 50, 667, oc=1999) # default from ARM PLL
         self.APU_CLK_RATIO = '6:2:1' # or 4:2:1
-        self.DDR_FREQ = Clock('DDR', 533.333333, 200, 534, oc=1) # default from DDR PLL
+        self.DDR_FREQ = Clock('DDR', 533.333333, 200, 534, oc=1999) # default from DDR PLL
         self.FCLK0_FREQ = Clock('FPGA0', 50, 0.1, 250, disable=1, has_div1=1, oc=999) # FCLK and peripheral default from IO PLL
         self.FCLK1_FREQ = Clock('FPGA1', 50, 0.1, 250, disable=1, has_div1=1, oc=999)
         self.FCLK2_FREQ = Clock('FPGA2', 50, 0.1, 250, disable=1, has_div1=1, oc=999)
@@ -267,6 +267,12 @@ class Zynq7000:
         try:
             self.CRYSTAL_FREQ.freq = self.param['freq']['crystal']
         except KeyError: pass
+        try:
+            self.APU_FREQ.freq = self.param['freq']['apu']
+        except KeyError: pass
+        try:
+            self.DDR_FREQ.freq = self.param['freq']['ddr']
+        except KeyError: pass
         if self.check_param_enabled('fclk0'):
             self.FCLK0_FREQ.disable = 0
             self.FCLK0_FREQ.freq = self.param['freq']['fclk0']
@@ -289,7 +295,7 @@ class Zynq7000:
         # ARM PLL
         m, d0, d1, dev = calc_pll_muldiv(xtal, self.APU_FREQ.freq,
                         r_l_h_mut, [2] + r_l_h_abs, [1], opt='div',
-                        freq_range=(self.APU_FREQ.lower, self.APU_FREQ.upper))
+                        freq_range=(self.APU_FREQ.lower, self.APU_FREQ.oc + self.APU_FREQ.upper))
         self.arm_pll_mul = m
         self.APU_FREQ.div0 = d0 # usually 2
         self.APU_FREQ.actual = xtal*m/d0
@@ -301,7 +307,7 @@ class Zynq7000:
         # DDR PLL
         m, d0, d1, dev = calc_pll_muldiv(xtal, self.DDR_FREQ.freq,
                         r_l_h_mut, [2], [1], opt='div', 
-                        freq_range=(self.DDR_FREQ.lower, self.DDR_FREQ.upper))
+                        freq_range=(self.DDR_FREQ.lower, self.DDR_FREQ.oc + self.DDR_FREQ.upper))
         self.ddr_pll_mul = m
         self.DDR_FREQ.div0 = d0 # now fixed to 2
         self.DDR_FREQ.actual = xtal*m/d0
