@@ -10,9 +10,9 @@ Together with [Xilinx embeddedsw](https://github.com/Xilinx/embeddedsw), [OpenXC
 
 ### Get started
 
-`python3 zynq7000_user.py` -- you can modify it to fit your board. 
+There's a bunch of examples! 
 
-Two sets of BSPs will be generated at `ps7_init_pynqz1` and `ps7_init_muzy4`. 
+[PL only](./examples/1-pl-only)        [FCLK / High FCLK](./examplex/2-fclk)         [EMIO](./examples/3-emio)         [AXI](./examples/4-axi)         [UART / High-baud UART](./examples/5-uart)         [ARM overclock](./examples/only-foss-can-do/1-apu-oc)
 
 ### FSBL and User App
 
