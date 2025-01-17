@@ -222,6 +222,9 @@ class Zynq7000:
         self.uart0_baud = 115200
         self.uart1_baud = 115200
 
+        self.volt_bank0 = lvcmos33
+        self.volt_bank1 = lvcmos33
+
         self.warning_thres = 0.005 # 0.5%
         # We load param and calculate params separately, so user has chance to override
         self.param_calculated = False
@@ -260,6 +263,14 @@ class Zynq7000:
 
         # TODO: if this part is done in param_load, then user setting parameters seems not working (Python memory copy problem?)
         # Don't allow customizing peripheral clk freq yet
+
+        try:
+            self.volt_bank0 = self.param['volt']['bank0']
+        except KeyError: pass
+        try:
+            self.volt_bank1 = self.param['volt']['bank1']
+        except KeyError: pass
+
         self.UART_FREQ.disable = not self.check_param_enabled('uart')
         self.QSPI_FREQ.disable = not self.check_param_enabled('qspi')
         self.SPI_FREQ.disable = not self.check_param_enabled('spi')
@@ -526,7 +537,7 @@ class Zynq7000:
             # MIO default pin properties
             mio.add(zar, 'slcr', mio_pin, 'TRI_ENABLE', disable)
             mio.add(zar, 'slcr', mio_pin, 'Speed', slow)
-            mio.add(zar, 'slcr', mio_pin, 'IO_Type', lvcmos33)
+            mio.add(zar, 'slcr', mio_pin, 'IO_Type', self.volt_bank0 if i <= 15 else self.volt_bank1) # corresponding bank voltage
             mio.add(zar, 'slcr', mio_pin, 'PULLUP', disable if i in mios_nopullup else enable)
             mio.add(zar, 'slcr', mio_pin, 'DisableRcvr', disable)
 
@@ -568,8 +579,11 @@ class Zynq7000:
         post_config.add(zar, 'slcr', 'fpga_rst_ctrl', '', 0x0, fullreg=1)
         post_config.add(zar, 'slcr', 'slcr_lock', 'lock_key', lock_key)
 
+        # pll.merge()
+        clock.merge()
         mio.merge()
         peripherals.merge()
+        post_config.merge()
 
         self.pll = pll
         self.clock = clock
