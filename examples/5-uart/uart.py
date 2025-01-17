@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 from zynq7000 import *
 
 # Set tab to 4 spaces to view correctly!
