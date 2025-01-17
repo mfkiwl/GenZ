@@ -1,0 +1,6 @@
+the_ROM_image:
+{
+	[bootloader]embeddedsw/lib/sw_apps/zynq_fsbl/src/fsbl.elf
+	build/top.bit
+	embeddedsw/lib/sw_apps/hello_world/src/hello-world.elf
+}
