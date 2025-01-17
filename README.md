@@ -26,7 +26,13 @@ There's a bunch of examples!
 
 [🔥ARM overclock](./examples/only-foss-can-do/1-apu-oc)
 
-#### Funding
+### More information
+
+[This](./examples/6-noddr-sdboot/README.md) contains detailed instructions and backgrounds to use GenZ. 
+
+[This gist](https://gist.github.com/regymm/1265dd6e9885983dc1d9977e42724319) contains my notes for [PrjXray](https://github.com/openXC7/prjxray), the fuzzer for 7-series FPGAs that generate databases for OpenXC7. 
+
+### Funding
 
 This project is funded through [NGI0 Entrust](https://nlnet.nl/entrust), a fund established by [NLnet](https://nlnet.nl) with financial support from the European Commission's [Next Generation Internet](https://ngi.eu) program. Learn more at the [NLnet project page](https://nlnet.nl/project/PTP-timingcard-gateware).
 
